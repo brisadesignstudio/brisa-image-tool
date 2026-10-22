@@ -1,4 +1,5 @@
 import type { WorkerRequest, WorkerResponse } from './protocol';
+import { spawnWorker } from './spawn-worker';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 export type Payload = DistributiveOmit<WorkerRequest, 'id'>;
@@ -21,6 +22,9 @@ interface Slot {
 
 export class CancelledError extends Error {}
 
+const UNSUPPORTED =
+  'Este navegador no ha podido iniciar el procesado de imágenes. Prueba con Google Chrome actualizado.';
+
 export interface RunOptions {
   imageId?: string;
   priority?: number;
@@ -33,23 +37,30 @@ export class WorkerPool {
   private slots: Slot[] = [];
   private queue: Task[] = [];
   private nextId = 1;
+  /** Fallos seguidos sin ningún trabajo terminado: si se acumulan, el navegador no puede procesar. */
+  private failures = 0;
+  private broken = false;
 
   constructor(size: number) {
     for (let i = 0; i < size; i++) this.slots.push(this.spawn(i));
   }
 
   private spawn(index: number): Slot {
-    const worker = new Worker(new URL('./processor.worker.ts', import.meta.url), {
-      type: 'module',
-      name: `brisa-proceso-${index + 1}`,
-    });
+    const worker = spawnWorker(`brisa-proceso-${index + 1}`);
     const slot: Slot = { worker, busy: null };
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => this.settle(slot, event.data);
     worker.onerror = (event) => {
       event.preventDefault();
-      // Un worker que falla (p. ej. sin memoria) se sustituye por uno nuevo.
+      // Un worker que falla (p. ej. sin memoria) se sustituye por uno nuevo,
+      // salvo que fallen una y otra vez sin terminar nada.
       worker.terminate();
       slot.busy?.reject(new Error('El proceso se detuvo inesperadamente. Vuelve a intentarlo.'));
+      this.failures += 1;
+      if (this.failures > this.slots.length * 2) {
+        this.broken = true;
+        for (const task of this.queue.splice(0)) task.reject(new Error(UNSUPPORTED));
+        return;
+      }
       const position = this.slots.indexOf(slot);
       if (position >= 0) this.slots[position] = this.spawn(index);
       this.pump();
@@ -58,6 +69,7 @@ export class WorkerPool {
   }
 
   run<T>(payload: Payload, options: RunOptions = {}): Promise<T> {
+    if (this.broken) return Promise.reject(new Error(UNSUPPORTED));
     return new Promise<T>((resolve, reject) => {
       this.queue.push({
         id: this.nextId++,
@@ -98,6 +110,7 @@ export class WorkerPool {
     const task = slot.busy;
     if (!task || msg.id !== task.id) return;
     slot.busy = null;
+    this.failures = 0;
     if (msg.ok) task.resolve(msg.result);
     else task.reject(new Error(msg.error));
     this.pump();

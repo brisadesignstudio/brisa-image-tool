@@ -89,6 +89,14 @@ La calidad de un JPG original se estima a partir de sus tablas de cuantización 
   Archivo (licencia OFL, incluidas en el sitio). Para usar las de marca en la web publicada
   hay que añadir su licencia web (por ejemplo, un proyecto de Adobe Fonts para Acumin).
 
+## Vista previa sin instalar nada (archivo único)
+
+`npm run build:archivo` genera `dist-archivo/brisa-preparador-de-imagenes.html`: la
+herramienta completa en un solo archivo (códecs, tipografías y procesado incluidos). Se abre
+con doble clic en Google Chrome, sin servidor, sin dominio y sin conexión a internet; su
+política de seguridad no permite ninguna conexión de red. Solo está probada en Chrome
+(Chromium); en Safari puede no funcionar al abrirse desde el disco.
+
 ## Desarrollo
 
 Requisitos: Node 22. Para generar imágenes de prueba, Python 3 con Pillow.
@@ -97,6 +105,7 @@ Requisitos: Node 22. Para generar imágenes de prueba, Python 3 con Pillow.
 npm install
 npm run dev          # servidor de desarrollo
 npm run build        # comprueba tipos y genera dist/ (sitio estático)
+npm run build:archivo # genera la vista previa de archivo único
 npm test             # pruebas unitarias (Vitest)
 npm run fixtures     # genera imágenes de prueba en tests/fixtures/generated/
 npm run test:e2e     # pruebas de extremo a extremo en Chromium (Playwright)

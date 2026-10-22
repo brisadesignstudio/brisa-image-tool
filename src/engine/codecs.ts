@@ -1,17 +1,15 @@
 /**
- * Códecs WebAssembly (Squoosh / jSquash). Se cargan solo cuando hacen falta y
- * siempre desde el propio sitio: no hay ninguna petición a servidores externos.
+ * Códecs WebAssembly (Squoosh / jSquash). Cada uno se inicia la primera vez que
+ * hace falta y carga su .wasm desde el propio sitio (o desde el mismo HTML en la
+ * versión de archivo único): no hay ninguna petición a servidores externos.
  */
 import initPng, { decode as wasmPngDecode } from '@jsquash/png/codec/pkg/squoosh_png.js';
-import pngWasmUrl from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url';
 import initOxipng, { optimise_raw } from '@jsquash/oxipng/codec/pkg/squoosh_oxipng.js';
-import oxipngWasmUrl from '@jsquash/oxipng/codec/pkg/squoosh_oxipng_bg.wasm?url';
 import initResize, { resize as wasmResize } from '@jsquash/resize/lib/resize/pkg/squoosh_resize.js';
-import resizeWasmUrl from '@jsquash/resize/lib/resize/pkg/squoosh_resize_bg.wasm?url';
-import mozjpegEncWasmUrl from '@jsquash/jpeg/codec/enc/mozjpeg_enc.wasm?url';
-import webpEncWasmUrl from '@jsquash/webp/codec/enc/webp_enc.wasm?url';
-import webpEncSimdWasmUrl from '@jsquash/webp/codec/enc/webp_enc_simd.wasm?url';
-import webpDecWasmUrl from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
+import mozjpegEncFactory from '@jsquash/jpeg/codec/enc/mozjpeg_enc.js';
+import webpEncFactory from '@jsquash/webp/codec/enc/webp_enc.js';
+import webpEncSimdFactory from '@jsquash/webp/codec/enc/webp_enc_simd.js';
+import webpDecFactory from '@jsquash/webp/codec/dec/webp_dec.js';
 import { simd } from 'wasm-feature-detect';
 import type { MozJPEGModule } from '@jsquash/jpeg/codec/enc/mozjpeg_enc.js';
 import type { WebPModule as WebPEncModule } from '@jsquash/webp/codec/enc/webp_enc.js';
@@ -25,28 +23,14 @@ const once = <T>(factory: () => Promise<T>) => {
   }));
 };
 
-const pngReady = once(() => initPng(pngWasmUrl));
-const oxipngReady = once(() => initOxipng(oxipngWasmUrl));
-const resizeReady = once(() => initResize(resizeWasmUrl));
-
-const jpegEncoder = once(async (): Promise<MozJPEGModule> => {
-  const { default: factory } = await import('@jsquash/jpeg/codec/enc/mozjpeg_enc.js');
-  return factory({ noInitialRun: true, locateFile: () => mozjpegEncWasmUrl });
-});
-
-const webpEncoder = once(async (): Promise<WebPEncModule> => {
-  if (await simd()) {
-    const { default: factory } = await import('@jsquash/webp/codec/enc/webp_enc_simd.js');
-    return factory({ noInitialRun: true, locateFile: () => webpEncSimdWasmUrl });
-  }
-  const { default: factory } = await import('@jsquash/webp/codec/enc/webp_enc.js');
-  return factory({ noInitialRun: true, locateFile: () => webpEncWasmUrl });
-});
-
-const webpDecoder = once(async (): Promise<WebPDecModule> => {
-  const { default: factory } = await import('@jsquash/webp/codec/dec/webp_dec.js');
-  return factory({ noInitialRun: true, locateFile: () => webpDecWasmUrl });
-});
+const pngReady = once(() => initPng());
+const oxipngReady = once(() => initOxipng());
+const resizeReady = once(() => initResize());
+const jpegEncoder = once((): Promise<MozJPEGModule> => mozjpegEncFactory({ noInitialRun: true }));
+const webpEncoder = once(
+  async (): Promise<WebPEncModule> => ((await simd()) ? webpEncSimdFactory : webpEncFactory)({ noInitialRun: true }),
+);
+const webpDecoder = once((): Promise<WebPDecModule> => webpDecFactory({ noInitialRun: true }));
 
 /** PNG → píxeles RGBA exactos (sin premultiplicar ni gestión de color). */
 export async function decodePng(bytes: Uint8Array<ArrayBuffer>): Promise<ImageData> {
