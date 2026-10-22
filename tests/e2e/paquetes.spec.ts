@@ -32,7 +32,7 @@ const packageItem = (dialog: Locator, name: string) =>
 
 test.describe('Paquetes de ajustes', () => {
   test('crear y aplicar en otro lote (añadir), con peso máximo, persistencia y deshacer', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     // Configuración «Portafolio Brisa»: web WebP + Instagram JPG con peso máximo + nombres propios.
@@ -84,7 +84,7 @@ test.describe('Paquetes de ajustes', () => {
   });
 
   test('reemplazar avisa de lo que se pierde; cancelar no toca nada; deshacer lo recupera', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     // Paquete con solo «Logo para perfil».
@@ -137,7 +137,7 @@ test.describe('Paquetes de ajustes', () => {
   });
 
   test('renombrar, actualizar, duplicar y eliminar, sin sobrescribir nombres repetidos', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-pequena-640x480.jpg']);
     await settle(page);
     const dialog = await openPackages(page);
@@ -187,7 +187,7 @@ test.describe('Paquetes de ajustes', () => {
       dialogs.push(d.message());
       void d.dismiss();
     });
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-pequena-640x480.jpg']);
     await settle(page);
     // Un ajuste suelto y un paquete.
@@ -267,7 +267,7 @@ test.describe('Paquetes de ajustes', () => {
         throw new DOMException('Sin espacio', 'QuotaExceededError');
       };
     });
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-pequena-640x480.jpg']);
     await settle(page);
     const dialog = await openPackages(page);

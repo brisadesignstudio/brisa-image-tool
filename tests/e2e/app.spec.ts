@@ -4,15 +4,21 @@ import { inspect } from '../../src/lib/sniff';
 import { addImages, decodePng, decodeWebp, downloadZip, entry, fixture, samePixels, settle } from './helpers';
 
 test.describe('Preparador de imágenes', () => {
-  test('privacidad: nada sale del navegador y la política de seguridad está activa', async ({ page }) => {
+  test('privacidad: nada sale del navegador y la política de seguridad está activa', async ({ page, baseURL }) => {
+    const site = new URL(baseURL!).origin;
     const outside: string[] = [];
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    page.on('console', (message) => {
+      if (message.type() === 'error') errors.push(message.text());
+    });
     page.on('request', (request) => {
       const url = request.url();
-      if (!url.startsWith('http://localhost:4173') && !url.startsWith('blob:') && !url.startsWith('data:')) {
+      if (!url.startsWith('blob:') && !url.startsWith('data:') && new URL(url).origin !== site) {
         outside.push(url);
       }
     });
-    await page.goto('/');
+    await page.goto('./');
     await expect(page.locator('meta[http-equiv="Content-Security-Policy"]')).toHaveAttribute(
       'content',
       /connect-src 'self'/,
@@ -22,10 +28,11 @@ test.describe('Preparador de imágenes', () => {
     await settle(page);
     await downloadZip(page);
     expect(outside).toEqual([]);
+    expect(errors).toEqual([]);
   });
 
   test('lee formatos reales, transparencias y orientación, y rechaza lo que no es imagen', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, [
       'retrato-exif-rotado.jpg',
       'logo-transparente-1600x800.png',
@@ -50,7 +57,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('nunca amplía: una imagen pequeña se entrega a su tamaño real', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-pequena-640x480.jpg']);
     await settle(page);
     const web = page.locator('[data-testid=output-card]').filter({ hasText: 'Contenido web' });
@@ -59,7 +66,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('peso antes y después, y el último ajuste de calidad no se pierde al cerrar', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
@@ -80,7 +87,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('recorte manual: mover el encuadre cambia la copia', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     const card = page.locator('[data-testid=output-card]').filter({ hasText: 'Instagram vertical 4:5' });
@@ -104,7 +111,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('misma proporción: se explica por qué el encuadre apenas se mueve', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['retrato-4x5-1600x2000.jpg']);
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
@@ -116,7 +123,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('la barra de descarga nunca tapa las tarjetas', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     const main = (await page.locator('main.main').boundingBox())!;
@@ -130,7 +137,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('márgenes con fondo transparente: el PNG conserva la transparencia', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['logo-transparente-1600x800.png']);
     await page.getByRole('button', { name: 'Añadir versión' }).click();
     await page.getByRole('button', { name: /Logo para perfil/ }).click();
@@ -155,7 +162,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('los logos no se alteran: sin cambios de tamaño salen idénticos píxel a píxel', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['brisa-logotipo-2400x400.png', 'ilustracion-sin-perdida.webp', 'degradado-alfa-1024x512.png']);
     // Solo «Solo optimizar»: mismo tamaño y formato.
     for (const name of ['Quitar la versión Contenido web', 'Quitar la versión Instagram vertical 4:5']) {
@@ -178,7 +185,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('ZIP ordenado por versión, con nombres limpios y las originales intactas', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg', 'icono-64x64.png']);
     await page.getByRole('button', { name: 'Más opciones' }).click();
     await page.getByLabel('Incluir las originales intactas').check();
@@ -199,7 +206,7 @@ test.describe('Preparador de imágenes', () => {
   });
 
   test('los ajustes se guardan en el dispositivo', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-pequena-640x480.jpg']);
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Contenido web' }).click();
@@ -223,7 +230,7 @@ test.describe('Preparador de imágenes', () => {
 
   test('en el móvil no hay desplazamiento lateral', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/');
+    await page.goto('./');
     const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(await overflow()).toBeLessThanOrEqual(0);
     await addImages(page, ['foto-grande-6000x4000.jpg', 'logo-transparente-1600x800.png']);

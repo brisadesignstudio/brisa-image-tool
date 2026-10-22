@@ -29,7 +29,7 @@ const strip = (files: Record<string, Uint8Array>) =>
 
 test.describe('Peso máximo por versión', () => {
   test('ya cumple, se alcanza bajando la calidad o es imposible: siempre un archivo válido', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     const editor = await openWithLimit(page, 'Instagram vertical 4:5', '300');
@@ -72,7 +72,7 @@ test.describe('Peso máximo por versión', () => {
   });
 
   test('PNG y WebP sin pérdida (logo transparente): nunca pasan a compresión con pérdida', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['logo-transparente-1600x800.png']);
     await page.getByRole('button', { name: 'Añadir versión' }).click();
     await page.getByRole('button', { name: /Logo para perfil/ }).click();
@@ -111,7 +111,7 @@ test.describe('Peso máximo por versión', () => {
   });
 
   test('cambios rápidos del límite: solo se muestra el resultado de los ajustes actuales', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, ['foto-grande-6000x4000.jpg']);
     await settle(page);
     const editor = await openWithLimit(page, 'Instagram vertical 4:5', '5');
@@ -130,7 +130,7 @@ test.describe('Peso máximo por versión', () => {
   });
 
   test('lote mixto con versiones excluidas: ZIP con formatos, medidas, límites y selección correctos', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     const names = ['foto-grande-6000x4000.jpg', 'retrato-exif-rotado.jpg', 'logo-transparente-1600x800.png', 'foto-pequena-640x480.jpg'];
     await addImages(page, names);
     await settle(page);

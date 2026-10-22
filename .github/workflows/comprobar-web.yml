@@ -1,0 +1,73 @@
+name: Comprobar la web publicada
+
+# Revisa el DNS y el HTTPS de la dirección y pasa las pruebas de extremo a extremo contra la
+# web publicada (no contra una copia local). No publica nada.
+# Se lanza a mano: pestaña Actions → «Comprobar la web publicada» → Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Dirección que se comprueba
+        required: true
+        default: https://tools.brisadesignstudio.com/
+      pruebas:
+        description: Pasar también las pruebas de extremo a extremo
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      WEB_URL: ${{ inputs.url }}
+    steps:
+      - name: DNS y HTTPS
+        run: |
+          url="${WEB_URL%/}/"
+          host="$(printf '%s' "$url" | sed -E 's#^[a-z]+://([^/:]+).*#\1#')"
+          zona="${host#*.}"
+          echo "== DNS de $host"
+          for tipo in CNAME A AAAA TXT MX CAA; do
+            printf '%-6s %s\n' "$tipo" "$(dig +short "$host" "$tipo" | paste -sd ' ' -)"
+          done
+          echo "== Nombre inventado en $zona (si responde, hay un registro comodín)"
+          dig +short "sin-registro-$RANDOM.$zona" A
+          echo "== Servidores DNS y CAA de $zona"
+          dig +short "$zona" NS | paste -sd ' ' -
+          dig +short "$zona" CAA | paste -sd ' ' -
+          echo "== HTTP y HTTPS"
+          curl -sS -o /dev/null --max-time 20 -w 'http://  %{http_code} → %{redirect_url}\n' "http://$host/" || true
+          curl -sS -o /dev/null --max-time 20 -w 'https:// %{http_code} %{content_type}\n' "$url" || true
+          echo | openssl s_client -connect "$host:443" -servername "$host" 2>/dev/null \
+            | openssl x509 -noout -subject -issuer -enddate 2>/dev/null || echo "Sin certificado válido"
+          echo "== Tipo de los códecs (debe ser application/wasm)"
+          js="$(curl -sS --max-time 20 "$url" | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1 || true)"
+          worker="$(curl -sS --max-time 20 "$url$js" | grep -oE 'processor\.worker-[A-Za-z0-9_-]+\.js' | head -1 || true)"
+          wasm="$(curl -sS --max-time 20 "${url}assets/$worker" | grep -oE '[a-z_]+-[A-Za-z0-9_-]+\.wasm' | head -1 || true)"
+          curl -sS -o /dev/null --max-time 20 -w "$wasm %{http_code} %{content_type}\n" "${url}assets/$wasm" || true
+
+      - uses: actions/checkout@v5
+        if: inputs.pruebas
+      - uses: actions/setup-node@v5
+        if: inputs.pruebas
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependencias, Chromium y Pillow
+        if: inputs.pruebas
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          python3 -m venv "$RUNNER_TEMP/py"
+          "$RUNNER_TEMP/py/bin/pip" install --quiet pillow
+          echo "$RUNNER_TEMP/py/bin" >> "$GITHUB_PATH"
+      - name: Imágenes de prueba (sintéticas)
+        if: inputs.pruebas
+        run: npm run fixtures
+      - name: Pruebas contra la web publicada
+        if: inputs.pruebas
+        run: npx playwright test

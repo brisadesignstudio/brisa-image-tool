@@ -18,7 +18,7 @@ const OTRA = 'foto-pequena-640x480.jpg';
 
 test.describe('Versiones por imagen', () => {
   test('selección mixta: recuento, peso y ZIP con exactamente esas combinaciones', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, [FOTO, LOGO, OTRA]);
     await page.getByRole('button', { name: 'Añadir versión' }).click();
     await page.getByRole('button', { name: /Logo para perfil/ }).click();
@@ -80,7 +80,7 @@ test.describe('Versiones por imagen', () => {
   });
 
   test('excluir y volver a incluir conserva los ajustes de la versión y el encuadre', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, [FOTO]);
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
@@ -111,7 +111,7 @@ test.describe('Versiones por imagen', () => {
   });
 
   test('«Aplicar a todas» copia la selección a todas las imágenes y se puede deshacer', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, [FOTO, LOGO, OTRA]);
     await settle(page);
     const count = page.locator('.export__count');
@@ -139,7 +139,7 @@ test.describe('Versiones por imagen', () => {
   });
 
   test('sin nada seleccionado se explica qué falta y la descarga se desactiva', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('./');
     await addImages(page, [FOTO, OTRA]);
     await settle(page);
     const download = page.getByRole('button', { name: /Descargar ZIP/ });
