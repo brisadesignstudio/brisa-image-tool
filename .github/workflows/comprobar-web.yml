@@ -34,6 +34,11 @@ jobs:
           for tipo in CNAME A AAAA TXT MX CAA; do
             printf '%-6s %s\n' "$tipo" "$(dig +short "$host" "$tipo" | paste -sd ' ' -)"
           done
+          # Sin cachés: el servidor del dominio dice si el registro ya está guardado y activo;
+          # los resolutores públicos, si ya se ha propagado.
+          for servidor in $(dig +short "$zona" NS | head -1) 1.1.1.1 8.8.8.8; do
+            printf 'CNAME en %-28s %s\n' "$servidor" "$(dig +short @"$servidor" "$host" CNAME | paste -sd ' ' -)"
+          done
           echo "== Nombre inventado en $zona (si responde, hay un registro comodín)"
           dig +short "sin-registro-$RANDOM.$zona" A
           echo "== Servidores DNS y CAA de $zona"
