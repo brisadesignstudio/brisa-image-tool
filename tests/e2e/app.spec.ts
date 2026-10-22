@@ -97,6 +97,32 @@ test.describe('Preparador de imágenes', () => {
     await expect(card.locator('img')).not.toHaveAttribute('src', firstSrc!);
   });
 
+  test('misma proporción: se explica por qué el encuadre apenas se mueve', async ({ page }) => {
+    await page.goto('/');
+    await addImages(page, ['retrato-4x5-1600x2000.jpg']);
+    await settle(page);
+    await page.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
+    const hint = page.getByTestId('crop-hint');
+    await expect(hint).toContainText('(4:5)');
+    await page.getByTestId('crop-box').focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press('-');
+    await expect(hint).toHaveCount(0);
+  });
+
+  test('la barra de descarga nunca tapa las tarjetas', async ({ page }) => {
+    await page.goto('/');
+    await addImages(page, ['foto-grande-6000x4000.jpg']);
+    await settle(page);
+    const main = (await page.locator('main.main').boundingBox())!;
+    const bar = (await page.locator('.export').boundingBox())!;
+    expect(main.y + main.height).toBeLessThanOrEqual(bar.y + 1);
+    // Desplazando hasta el final, el pie de la última tarjeta queda visible por encima de la barra.
+    const foot = page.locator('[data-testid=output-card] .card__foot').last();
+    await foot.scrollIntoViewIfNeeded();
+    const footBox = (await foot.boundingBox())!;
+    expect(footBox.y + footBox.height).toBeLessThanOrEqual(bar.y);
+  });
+
   test('márgenes con fondo transparente: el PNG conserva la transparencia', async ({ page }) => {
     await page.goto('/');
     await addImages(page, ['logo-transparente-1600x800.png']);

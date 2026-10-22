@@ -92,6 +92,7 @@ def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     photo(6000, 4000, seed=1).save(OUT / "foto-grande-6000x4000.jpg", quality=92)
     photo(640, 480, seed=2).save(OUT / "foto-pequena-640x480.jpg", quality=75)
+    photo(1600, 2000, seed=4).save(OUT / "retrato-4x5-1600x2000.jpg", quality=88)
     exif = Image.Exif()
     exif[0x0112] = 6  # Orientation: girar 90° a la derecha al mostrar
     arrow_portrait().save(OUT / "retrato-exif-rotado.jpg", quality=90, exif=exif.tobytes())

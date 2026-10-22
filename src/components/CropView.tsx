@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { itemKey, useStore } from '../state/store';
 import { setCrop } from '../state/actions';
-import { computeLayout, fitCrop } from '../lib/geometry';
+import { computeLayout, fitCrop, ratioLabel } from '../lib/geometry';
 import { formatDimensions } from '../lib/format';
 import type { CropRect, Recipe, SourceImage } from '../lib/types';
+import { Icon } from './Icon';
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
 type DragKind = 'move' | Corner;
@@ -140,43 +141,60 @@ export function CropView({ image, recipe }: { image: SourceImage; recipe: Recipe
     height: crop.h * box.h,
   };
 
+  // Proporción igual o casi igual: el encuadre ocupa toda la imagen y no hay hueco para moverlo.
+  const tight = committed.w > 0.97 && committed.h > 0.97;
+  const ratio = ratioLabel(recipe.width as number, recipe.height as number);
+
   return (
-    <div className="crop" ref={stage} onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
-      {box.w > 1 && (
-        <div className="crop__frame" style={{ width: box.w, height: box.h }}>
-          <img src={image.previewUrl} alt={`Encuadre de ${image.name}`} draggable={false} />
-          <svg className="crop__shade" width={box.w} height={box.h} aria-hidden="true">
-            <path
-              fillRule="evenodd"
-              d={`M0 0H${box.w}V${box.h}H0Z M${rect.left} ${rect.top}h${rect.width}v${rect.height}h${-rect.width}Z`}
-            />
-          </svg>
-          <div
-            className="crop__box"
-            style={rect}
-            role="group"
-            aria-roledescription="encuadre"
-            tabIndex={0}
-            aria-label="Encuadre: arrástralo o usa las flechas para moverlo, y + o − para cambiar su tamaño"
-            onPointerDown={begin('move')}
-            onKeyDown={onKey}
-            data-testid="crop-box"
-          >
-            <span className="crop__thirds" />
-            {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
-              <span
-                key={corner}
-                className="crop__handle"
-                data-corner={corner}
-                onPointerDown={begin(corner)}
-              />
-            ))}
-            <span className="crop__label tabular">
-              {formatDimensions(layout.iw, layout.ih)} px{layout.limited ? ' · resolución real' : ''}
-            </span>
-          </div>
-        </div>
+    <div className="crop" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+      {tight && (
+        <p className="note note--info crop__hint" role="status" data-testid="crop-hint">
+          <Icon name="info" />
+          <span>
+            La proporción de esta imagen es igual o muy parecida a la de la salida
+            {ratio ? ` (${ratio})` : ''}, así que el encuadre ocupa casi toda la imagen y apenas se
+            puede mover. Para elegir otra zona, hazlo más pequeño desde una esquina (o con la tecla
+            -) y después muévelo.
+          </span>
+        </p>
       )}
+      <div className="crop__stage" ref={stage}>
+        {box.w > 1 && (
+          <div className="crop__frame" style={{ width: box.w, height: box.h }}>
+            <img src={image.previewUrl} alt={`Encuadre de ${image.name}`} draggable={false} />
+            <svg className="crop__shade" width={box.w} height={box.h} aria-hidden="true">
+              <path
+                fillRule="evenodd"
+                d={`M0 0H${box.w}V${box.h}H0Z M${rect.left} ${rect.top}h${rect.width}v${rect.height}h${-rect.width}Z`}
+              />
+            </svg>
+            <div
+              className="crop__box"
+              style={rect}
+              role="group"
+              aria-roledescription="encuadre"
+              tabIndex={0}
+              aria-label="Encuadre: arrástralo o usa las flechas para moverlo, y + o − para cambiar su tamaño"
+              onPointerDown={begin('move')}
+              onKeyDown={onKey}
+              data-testid="crop-box"
+            >
+              <span className="crop__thirds" />
+              {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+                <span
+                  key={corner}
+                  className="crop__handle"
+                  data-corner={corner}
+                  onPointerDown={begin(corner)}
+                />
+              ))}
+              <span className="crop__label tabular">
+                {formatDimensions(layout.iw, layout.ih)} px{layout.limited ? ' · resolución real' : ''}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
