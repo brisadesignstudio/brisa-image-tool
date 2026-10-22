@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BUILT_IN_PRESETS, recipeFromPreset, sanitizeSettings, settingsOf } from '../../src/lib/presets';
-import { planZip, zipBaseName } from '../../src/state/export';
+import { exportSummary, planZip, zipBaseName } from '../../src/state/export';
 import { buildSpec, warningsFor } from '../../src/engine/spec';
 import { defaultNaming } from '../../src/lib/naming';
 import { itemKey, type AppState } from '../../src/state/store';
@@ -123,5 +123,91 @@ describe('ZIP', () => {
       `${root}/originales/Foto Uno.png`,
       `${root}/originales/foto-uno.png`,
     ]);
+  });
+});
+
+describe('versiones por imagen', () => {
+  const images = [
+    image('foto', 'Foto.jpg', { format: 'jpeg', hasAlpha: false }),
+    image('logo', 'Logo.png'),
+    image('otra', 'Otra.jpg', { format: 'jpeg', hasAlpha: false }),
+  ];
+  const recipes = [preset('web-contenido'), preset('ig-4x5'), preset('logo-perfil')];
+  const sizes: Record<string, number> = { 'web-contenido': 30, 'ig-4x5': 50, 'logo-perfil': 70 };
+  const formats = { 'web-contenido': 'webp', 'ig-4x5': 'jpeg', 'logo-perfil': 'png' } as const;
+
+  const stateWith = (excluded: string[], includeOriginals = false) => {
+    const results: AppState['results'] = {};
+    for (const img of images) {
+      for (const r of recipes) {
+        results[itemKey(img.id, r.id)] = {
+          key: 'k',
+          status: 'done',
+          blob: new Blob(['copia']),
+          width: 10,
+          height: 10,
+          size: sizes[r.id],
+          format: formats[r.id as keyof typeof formats],
+          warnings: [],
+        };
+      }
+    }
+    return {
+      images,
+      recipes,
+      results,
+      excluded: Object.fromEntries(excluded.map((key) => [key, true])),
+      crops: {},
+      naming: { ...defaultNaming(), includeOriginals },
+    } as unknown as AppState;
+  };
+  const date = new Date(2026, 9, 22);
+  const root = 'brisa-imagenes-2026-10-22';
+
+  it('por defecto, cada imagen exporta todas las versiones', () => {
+    const summary = exportSummary(stateWith([]));
+    expect(summary.files).toBe(9);
+    expect(summary.excluded).toBe(0);
+    expect(summary.bytes).toBe(3 * (30 + 50 + 70));
+  });
+
+  it('selección mixta: recuento, peso y ZIP con exactamente esas combinaciones', () => {
+    // Foto: web e Instagram. Logo: solo el PNG. Otra: solo web.
+    const state = stateWith([
+      itemKey('foto', 'logo-perfil'),
+      itemKey('logo', 'web-contenido'),
+      itemKey('logo', 'ig-4x5'),
+      itemKey('otra', 'ig-4x5'),
+      itemKey('otra', 'logo-perfil'),
+    ]);
+    const summary = exportSummary(state);
+    expect(summary.files).toBe(4);
+    expect(summary.excluded).toBe(5);
+    expect(summary.bytes).toBe(30 + 50 + 70 + 30);
+    expect(summary.withoutVersions).toBe(0);
+    expect(planZip(state, date).map((e) => e.path)).toEqual([
+      `${root}/web/foto-web.webp`,
+      `${root}/ig-4x5/foto-ig-4x5.jpg`,
+      `${root}/perfil/logo-perfil.png`,
+      `${root}/web/otra-web.webp`,
+    ]);
+  });
+
+  it('una imagen sin versiones no entra en el ZIP y se nombra', () => {
+    const state = stateWith(recipes.map((r) => itemKey('logo', r.id)));
+    const summary = exportSummary(state);
+    expect(summary.files).toBe(6);
+    expect(summary.withoutVersions).toBe(1);
+    expect(summary.firstWithoutVersions).toBe('Logo.png');
+    expect(planZip(state, date).some((e) => e.path.includes('logo'))).toBe(false);
+  });
+
+  it('sin nada seleccionado no hay archivos, aunque se pidan las originales', () => {
+    const all = images.flatMap((img) => recipes.map((r) => itemKey(img.id, r.id)));
+    const summary = exportSummary(stateWith(all, true));
+    expect(summary.copies).toBe(0);
+    expect(summary.files).toBe(0);
+    expect(summary.originals).toBe(0);
+    expect(summary.bytes).toBe(0);
   });
 });

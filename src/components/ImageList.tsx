@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../state/store';
+import { itemKey, useStore } from '../state/store';
 import { removeAllImages, removeImage, selectImage } from '../state/actions';
 import { FORMAT_LABEL, formatBytes, formatDimensions } from '../lib/format';
 import type { SourceImage } from '../lib/types';
@@ -18,6 +18,8 @@ function ImageItem({
   onRemove: () => void;
 }) {
   const info = image.info;
+  const total = useStore((s) => s.recipes.length);
+  const chosen = useStore((s) => s.recipes.filter((r) => !s.excluded[itemKey(image.id, r.id)]).length);
   return (
     <li className="image-item" aria-current={selected ? 'true' : undefined} data-image={image.id}>
       <button
@@ -50,6 +52,11 @@ function ImageItem({
             <div className="tags">
               <span className="tag">{FORMAT_LABEL[info.format]}</span>
               {info.hasAlpha && <span className="tag tag--alpha">Transparencia</span>}
+              {total > 0 && chosen < total && (
+                <span className={`tag${chosen === 0 ? ' tag--warn' : ''}`} data-testid="versiones-imagen">
+                  {chosen === 0 ? 'Ninguna versión' : `${chosen} de ${total} versiones`}
+                </span>
+              )}
             </div>
           </>
         )}

@@ -48,7 +48,7 @@ export interface PlannedItem {
   index: number;
 }
 
-/** Copias que irán al ZIP (imágenes listas, salidas activas, sin excluir). */
+/** Copias que irán al ZIP: imágenes listas × versiones que cada imagen tiene seleccionadas. */
 export function plannedItems(state: AppState): PlannedItem[] {
   const items: PlannedItem[] = [];
   state.images
@@ -60,6 +60,66 @@ export function plannedItems(state: AppState): PlannedItem[] {
       }
     });
   return items;
+}
+
+export interface ExportSummary {
+  /** Archivos del ZIP: copias seleccionadas y, si se piden, originales (0 si no hay copias). */
+  files: number;
+  copies: number;
+  images: number;
+  versions: number;
+  /** Combinaciones imagen × versión que no se descargarán. */
+  excluded: number;
+  originals: number;
+  /** Copias seleccionadas que ya están listas. */
+  ready: number;
+  reading: number;
+  unreadable: number;
+  /** Imágenes listas sin ninguna versión seleccionada (no irán en el ZIP) y el nombre de la primera. */
+  withoutVersions: number;
+  firstWithoutVersions: string | null;
+  /** Peso de lo que se descargará (copias listas y originales). */
+  bytes: number;
+  example: string | null;
+}
+
+/** Recuento y peso de la descarga con la selección actual. */
+export function exportSummary(state: AppState): ExportSummary {
+  const items = plannedItems(state);
+  const images = state.images.filter((i) => i.status === 'ready');
+  let bytes = 0;
+  let ready = 0;
+  for (const item of items) {
+    const result = state.results[item.key];
+    if (result?.status === 'done' && result.size !== undefined) {
+      bytes += result.size;
+      ready += 1;
+    }
+  }
+  const originals = state.naming.includeOriginals && items.length > 0 ? images : [];
+  for (const image of originals) bytes += image.size;
+  const first = items[0];
+  const firstResult = first ? state.results[first.key] : undefined;
+  const selected = new Set(items.map((item) => item.image.id));
+  const empty = state.recipes.length > 0 ? images.filter((image) => !selected.has(image.id)) : [];
+  return {
+    files: items.length > 0 ? items.length + originals.length : 0,
+    copies: items.length,
+    images: images.length,
+    versions: state.recipes.length,
+    excluded: images.length * state.recipes.length - items.length,
+    originals: originals.length,
+    ready,
+    reading: state.images.filter((i) => i.status === 'analyzing').length,
+    unreadable: state.images.filter((i) => i.status === 'error').length,
+    withoutVersions: empty.length,
+    firstWithoutVersions: empty[0]?.name ?? null,
+    bytes,
+    example:
+      first && firstResult?.format && firstResult.width
+        ? outputFileName(state.naming, first.image, first.recipe, first.index, firstResult)
+        : null,
+  };
 }
 
 /** Rutas del ZIP: carpeta raíz con fecha, carpetas por salida o por imagen y originales aparte. */
@@ -111,10 +171,15 @@ function waitForAnalysis(): Promise<void> {
   });
 }
 
-function waitForRenders(items: PlannedItem[]): Promise<void> {
+/**
+ * Espera a que estén listas las copias seleccionadas. La selección se vuelve a leer en
+ * cada paso: si cambia mientras tanto, el ZIP refleja la selección del momento final.
+ */
+function waitForRenders(): Promise<PlannedItem[]> {
   return new Promise((resolve) => {
     const check = () => {
       const state = useStore.getState();
+      const items = plannedItems(state);
       const finished = items.filter((item) => {
         const result = state.results[item.key];
         return isCurrent(state, item) && (result.status === 'done' || result.status === 'error');
@@ -122,11 +187,19 @@ function waitForRenders(items: PlannedItem[]): Promise<void> {
       useStore.setState({ exporting: { phase: 'waiting', done: finished, total: items.length } });
       if (finished === items.length) {
         unsubscribe();
-        resolve();
+        resolve(items);
       }
     };
     const unsubscribe = useStore.subscribe((state, prev) => {
-      if (state.results !== prev.results) check();
+      if (
+        state.results !== prev.results ||
+        state.excluded !== prev.excluded ||
+        state.recipes !== prev.recipes ||
+        state.images !== prev.images ||
+        state.crops !== prev.crops
+      ) {
+        check();
+      }
     });
     check();
   });
@@ -148,13 +221,18 @@ export async function exportZip() {
   try {
     await waitForAnalysis();
     syncRenders();
-    const items = plannedItems(useStore.getState());
+    const items = await waitForRenders();
+    const state = useStore.getState();
     if (items.length === 0) {
-      showNotice('descarga', 'info', 'Aún no hay nada que descargar: añade imágenes y al menos una versión.');
+      showNotice(
+        'descarga',
+        'info',
+        state.recipes.length === 0
+          ? 'Aún no hay nada que descargar: añade al menos una versión (paso 2).'
+          : 'No hay nada seleccionado para descargar: activa al menos una versión en «Versiones de esta imagen» (paso 3).',
+      );
       return;
     }
-    await waitForRenders(items);
-    const state = useStore.getState();
     const failed = items.filter((item) => state.results[item.key]?.status === 'error');
     if (failed.length) {
       const names = failed
@@ -184,7 +262,7 @@ export async function exportZip() {
     showNotice(
       'descarga',
       'ok',
-      `Descarga iniciada: ${fileName} (${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'}, ${formatBytes(zip.size)}). Búscalo en las descargas de tu navegador.${skipped}`,
+      `Descarga iniciada: ${fileName} (${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'}; el ZIP pesa ${formatBytes(zip.size)}). Búscalo en las descargas de tu navegador.${skipped}`,
     );
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'error desconocido';

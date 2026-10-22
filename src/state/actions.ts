@@ -195,13 +195,44 @@ export function retryItem(imageId: string, recipeId: string) {
   syncRenders();
 }
 
-export function toggleExcluded(imageId: string, recipeId: string) {
+/**
+ * Incluye o excluye una versión de una imagen en la descarga. Solo cambia qué se
+ * exporta: los ajustes de la versión y el encuadre de la imagen se conservan.
+ */
+export function setIncluded(imageId: string, recipeId: string, included: boolean) {
   const key = itemKey(imageId, recipeId);
-  set((s) =>
-    s.excluded[key]
+  set((s) => {
+    if (included === !s.excluded[key]) return s;
+    return included
       ? { excluded: dropKeys(s.excluded, (k) => k === key) }
-      : { excluded: { ...s.excluded, [key]: true as const } },
-  );
+      : { excluded: { ...s.excluded, [key]: true as const } };
+  });
+}
+
+/** Copia a todas las imágenes qué versiones exporta una de ellas; se puede deshacer. */
+export function applySelectionToAll(sourceId: string) {
+  const s = get();
+  const before = s.excluded;
+  const excluded: Record<string, true> = {};
+  for (const image of s.images) {
+    for (const recipe of s.recipes) {
+      if (s.excluded[itemKey(sourceId, recipe.id)]) excluded[itemKey(image.id, recipe.id)] = true;
+    }
+  }
+  set({ excluded });
+  const chosen = s.recipes.filter((r) => !s.excluded[itemKey(sourceId, r.id)]).map((r) => `«${r.name}»`);
+  const list =
+    chosen.length === 0
+      ? 'ninguna versión'
+      : chosen.length === 1
+        ? chosen[0]
+        : `${chosen.slice(0, -1).join(', ')} y ${chosen[chosen.length - 1]}`;
+  const count = s.images.filter((i) => i.status !== 'error').length;
+  showNotice('revision', 'info', `Selección aplicada a las ${count} imágenes: ${list}.`, {
+    label: 'Deshacer',
+    focusAfter: '.selection__apply',
+    run: () => set({ excluded: before, notice: null }),
+  });
 }
 
 export function setNaming(patch: Partial<NamingSettings>) {

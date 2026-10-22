@@ -81,7 +81,7 @@ test.describe('Interfaz', () => {
     await addImages(page, ['foto-grande-6000x4000.jpg', 'icono-64x64.png']);
     await settle(page);
     const versions = page.getByRole('region', { name: /Versiones para exportar/ });
-    await expect(versions).toContainText('Cada versión se aplica a las 2 imágenes');
+    await expect(versions).toContainText('Por defecto, cada versión se aplica a las 2 imágenes');
     await expect(versions.getByRole('button', { name: 'Editar la versión Contenido web' })).toContainText(
       '1200 px de ancho · WebP',
     );
@@ -214,6 +214,8 @@ test.describe('Interfaz', () => {
   test('una imagen dañada se explica y no se cuela en silencio en la descarga', async ({ page }) => {
     await page.goto('/');
     await addImages(page, ['foto-pequena-640x480.jpg']);
+    // Se espera a la mesa de trabajo: el selector de la portada desaparece al cargar.
+    await expect(page.locator('.image-item')).toHaveCount(1);
     await page.locator('[data-testid=file-input]').first().setInputFiles({
       name: 'dañada.jpg',
       mimeType: 'image/jpeg',

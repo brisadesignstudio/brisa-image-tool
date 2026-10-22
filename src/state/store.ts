@@ -26,7 +26,7 @@ export interface EditorTarget {
 }
 
 /** Zona de la interfaz donde se muestra el aviso (junto a lo que se refiere). */
-export type NoticeArea = 'imagenes' | 'versiones' | 'descarga' | 'version';
+export type NoticeArea = 'imagenes' | 'versiones' | 'revision' | 'descarga' | 'version';
 
 export interface Notice {
   id: number;
@@ -52,7 +52,10 @@ export interface AppState {
   customPresets: Preset[];
   /** Encuadre manual por imagen y versión. */
   crops: Record<string, CropRect>;
-  /** Copias que no se incluyen en la descarga. */
+  /**
+   * Combinaciones imagen × versión que no se descargan. Por defecto no hay ninguna:
+   * cada imagen exporta todas las versiones. No toca ajustes ni encuadres.
+   */
   excluded: Record<string, true>;
   results: Record<string, RenderResult>;
   naming: NamingSettings;

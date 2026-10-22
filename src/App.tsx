@@ -84,7 +84,7 @@ export function App() {
           <p className="display">Suelta para añadir tus imágenes</p>
         </div>
       )}
-      <NoticeAnnouncer areas={['imagenes', 'versiones', 'descarga']} />
+      <NoticeAnnouncer areas={['imagenes', 'versiones', 'revision', 'descarga']} />
       <Editor />
     </>
   );

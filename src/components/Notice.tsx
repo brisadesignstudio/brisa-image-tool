@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useStore, type NoticeArea } from '../state/store';
 import { dismissNotice } from '../state/actions';
 import { Icon } from './Icon';
@@ -6,19 +6,26 @@ import { Icon } from './Icon';
 /** Aviso junto a la zona a la que se refiere: no flota sobre el contenido. */
 export function Notice({ area }: { area: NoticeArea }) {
   const notice = useStore((s) => (s.notice?.area === area ? s.notice : null));
+  const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Los errores se quedan hasta que se cierran; el resto se retira solo.
+    // Los errores se quedan hasta que se cierran; el resto se retira solo, salvo
+    // mientras el foco está dentro (por ejemplo, sobre «Deshacer»).
     if (!notice || notice.kind === 'error') return;
-    const timer = setTimeout(() => {
-      if (useStore.getState().notice?.id === notice.id) dismissNotice();
-    }, 12_000);
+    let timer: ReturnType<typeof setTimeout>;
+    const later = () => {
+      timer = setTimeout(() => {
+        if (box.current?.contains(document.activeElement)) return later();
+        if (useStore.getState().notice?.id === notice.id) dismissNotice();
+      }, 12_000);
+    };
+    later();
     return () => clearTimeout(timer);
   }, [notice]);
 
   if (!notice) return null;
   return (
-    <div className={`notice notice--${notice.kind}`} data-testid={`aviso-${area}`}>
+    <div ref={box} className={`notice notice--${notice.kind}`} data-testid={`aviso-${area}`}>
       <Icon name={notice.kind === 'error' ? 'warning' : notice.kind === 'ok' ? 'check' : 'info'} />
       <p>{notice.text}</p>
       {notice.action && (

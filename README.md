@@ -19,10 +19,15 @@ cualquiera en todo momento.
    vertical 4:5») crea una copia de todas las imágenes; cada ficha muestra su medida y su
    formato. Hay ajustes de fábrica para web y redes, puedes guardar los tuyos y, si quitas
    una versión por error, «Deshacer» la recupera con sus encuadres.
-3. **Revisión.** Una tarjeta por versión con la copia real, medidas, formato, calidad, peso
-   antes y después, avisos y el nombre del archivo. «Ajustar» abre el editor.
+3. **Revisión.** «Versiones de esta imagen» decide qué versiones exporta cada imagen (por
+   defecto, todas); «Aplicar a todas» copia esa selección al lote y se puede deshacer.
+   Desactivar una versión solo la deja fuera del ZIP: no borra sus ajustes ni el encuadre.
+   Debajo, una tarjeta por versión con la copia real, medidas, formato, calidad, peso antes y
+   después, avisos y el nombre del archivo. «Ajustar» abre el editor.
 4. **Descarga.** Una barra compacta con el recuento (archivos, imágenes × versiones,
-   exclusiones y originales), el peso total, el progreso y «Descargar ZIP». Patrón de
+   exclusiones y originales), el peso total, el progreso y «Descargar ZIP». El ZIP lleva
+   exactamente las combinaciones seleccionadas; si no hay ninguna, se explica qué falta y
+   la descarga queda desactivada. Patrón de
    nombres, carpetas, nombres aptos para web y originales intactas están en «Más opciones».
 
 ## Editor

@@ -2,8 +2,10 @@ import type { CSSProperties } from 'react';
 import { useStore } from '../state/store';
 import { renameImage } from '../state/actions';
 import { FORMAT_LABEL, describeSourceQuality, formatBytes, formatDimensions } from '../lib/format';
+import { Notice } from './Notice';
 import { OutputCard } from './OutputCard';
 import { SectionTitle } from './SectionTitle';
+import { VersionSelection } from './VersionSelection';
 
 export function ImageOutputs() {
   const image = useStore((s) => s.images.find((i) => i.id === s.selectedId));
@@ -54,6 +56,8 @@ export function ImageOutputs() {
           </label>
         )}
       </div>
+      <VersionSelection image={image} />
+      <Notice area="revision" />
       {info &&
         (recipes.length === 0 ? (
           <div className="empty-outputs">

@@ -35,8 +35,8 @@ export function VersionsBar() {
             Versiones para exportar
           </SectionTitle>
           <p className="versions__scope">
-            Cada versión se aplica a {imageCount === 1 ? 'la imagen' : `las ${imageCount} imágenes`} y se
-            guarda en este equipo.
+            Por defecto, cada versión se aplica a {imageCount === 1 ? 'la imagen' : `las ${imageCount} imágenes`}{' '}
+            y se guarda en este equipo.
           </p>
         </div>
         <button

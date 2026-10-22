@@ -1,8 +1,8 @@
 import { useRef, useState, type CSSProperties } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useStore, type AppState } from '../state/store';
+import { useStore } from '../state/store';
 import { setNaming } from '../state/actions';
-import { exportZip, outputFileName, plannedItems } from '../state/export';
+import { exportSummary, exportZip } from '../state/export';
 import { formatBytes } from '../lib/format';
 import { PATTERN_TOKENS } from '../lib/naming';
 import type { FolderMode } from '../lib/types';
@@ -17,44 +17,10 @@ const FOLDERS: Record<FolderMode, string> = {
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-function summarize(state: AppState) {
-  const items = plannedItems(state);
-  const images = state.images.filter((i) => i.status === 'ready');
-  let bytes = 0;
-  let ready = 0;
-  for (const item of items) {
-    const result = state.results[item.key];
-    if (result?.status === 'done' && result.size !== undefined) {
-      bytes += result.size;
-      ready += 1;
-    }
-  }
-  const originals = state.naming.includeOriginals ? images : [];
-  for (const image of originals) bytes += image.size;
-  const first = items[0];
-  const firstResult = first ? state.results[first.key] : undefined;
-  return {
-    files: items.length + originals.length,
-    copies: items.length,
-    images: images.length,
-    versions: state.recipes.length,
-    excluded: images.length * state.recipes.length - items.length,
-    originals: originals.length,
-    ready,
-    reading: state.images.filter((i) => i.status === 'analyzing').length,
-    unreadable: state.images.filter((i) => i.status === 'error').length,
-    bytes,
-    example:
-      first && firstResult?.format && firstResult.width
-        ? outputFileName(state.naming, first.image, first.recipe, first.index, firstResult)
-        : null,
-  };
-}
-
 export function ExportBar() {
   const naming = useStore((s) => s.naming);
   const exporting = useStore((s) => s.exporting);
-  const summary = useStore(useShallow(summarize));
+  const summary = useStore(useShallow(exportSummary));
   const [open, setOpen] = useState(false);
   const pattern = useRef<HTMLInputElement>(null);
 
@@ -78,6 +44,16 @@ export function ExportBar() {
       : exporting.phase === 'reading'
         ? `Leyendo ${exporting.done} de ${exporting.total}…`
         : `Preparando ${exporting.done} de ${exporting.total}…`;
+
+  // Qué falta para poder descargar (con el botón desactivado), dicho en claro.
+  const nothing =
+    summary.reading > 0 || summary.images === 0
+      ? null
+      : summary.versions === 0
+        ? 'Añade al menos una versión (paso 2) para poder descargar.'
+        : summary.copies === 0
+          ? 'No hay nada seleccionado para descargar: activa al menos una versión en «Versiones de esta imagen» (paso 3).'
+          : null;
 
   const status =
     summary.reading > 0
@@ -176,9 +152,25 @@ export function ExportBar() {
                 {summary.originals > 0 && ` + ${plural(summary.originals, 'original', 'originales')}`}
               </span>
             </p>
-            <p className="export__detail tabular">
-              {status} · {FOLDERS[naming.folders]}
-            </p>
+            {(summary.copies > 0 || summary.reading > 0) && (
+              <p className="export__detail tabular">
+                {status} · {FOLDERS[naming.folders]}
+              </p>
+            )}
+            {nothing && (
+              <p className="export__warn" id="sin-seleccion" data-testid="sin-seleccion">
+                <Icon name="warning" />
+                {nothing}
+              </p>
+            )}
+            {!nothing && summary.withoutVersions > 0 && (
+              <p className="export__warn">
+                <Icon name="info" />
+                {summary.withoutVersions === 1
+                  ? `«${summary.firstWithoutVersions}» no tiene ninguna versión seleccionada: no irá en el ZIP.`
+                  : `${summary.withoutVersions} imágenes no tienen ninguna versión seleccionada: no irán en el ZIP.`}
+              </p>
+            )}
             {summary.unreadable > 0 && (
               <p className="export__warn">
                 <Icon name="warning" />
@@ -215,7 +207,8 @@ export function ExportBar() {
             type="button"
             className="btn btn--large btn--download"
             onClick={() => void exportZip()}
-            disabled={busy || (summary.copies === 0 && summary.reading === 0)}
+            disabled={busy || Boolean(nothing) || (summary.copies === 0 && summary.reading === 0)}
+            aria-describedby={nothing ? 'sin-seleccion' : undefined}
           >
             {busy ? <span className="spinner" /> : <Icon name="download" />}
             {label}

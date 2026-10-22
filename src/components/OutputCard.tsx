@@ -1,5 +1,5 @@
 import { itemKey, useStore } from '../state/store';
-import { openEditor, retryItem, toggleExcluded } from '../state/actions';
+import { openEditor, retryItem, setIncluded } from '../state/actions';
 import { outputFileName } from '../state/export';
 import {
   FORMAT_LABEL,
@@ -143,7 +143,11 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
             Ajustar
           </button>
           <label className="switch">
-            <input type="checkbox" checked={!excluded} onChange={() => toggleExcluded(image.id, recipe.id)} />
+            <input
+              type="checkbox"
+              checked={!excluded}
+              onChange={(event) => setIncluded(image.id, recipe.id, event.target.checked)}
+            />
             Incluir en la descarga
           </label>
         </div>
