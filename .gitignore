@@ -6,3 +6,4 @@ tests/fixtures/generated/
 *.log
 .DS_Store
 dist-archivo/
+.venv/

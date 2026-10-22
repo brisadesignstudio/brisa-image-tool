@@ -7,6 +7,9 @@ navegador**: no hay servidor, ni cuentas, ni base de datos, ni APIs de pago.
 Es independiente de Brisa Platform. Dirección prevista: `tools.brisadesignstudio.com`
 (todavía sin publicar; ver «Publicación» más abajo).
 
+Estado, historial y pendientes: [`ESTADO.md`](ESTADO.md) · Instalar y desarrollar en tu Mac:
+[«Desarrollo en tu Mac»](#desarrollo-en-tu-mac).
+
 ## Recorrido
 
 La mesa de trabajo sigue cuatro pasos numerados, sin asistente: se puede volver a
@@ -177,34 +180,109 @@ La calidad de un JPG original se estima a partir de sus tablas de cuantización 
 herramienta completa en un solo archivo (códecs, tipografías y procesado incluidos). Se abre
 con doble clic en Google Chrome, sin servidor, sin dominio y sin conexión a internet; su
 política de seguridad no permite ninguna conexión de red. Solo está probada en Chrome
-(Chromium); en Safari puede no funcionar al abrirse desde el disco.
+(Chromium); en Safari puede no funcionar al abrirse desde el disco. Comandos para tu Mac en
+«Desarrollo en tu Mac».
 
-## Desarrollo
+## Desarrollo en tu Mac
 
-Requisitos: Node 22. Para generar imágenes de prueba, Python 3 con Pillow.
+Estado del proyecto, historial y pendientes: [`ESTADO.md`](ESTADO.md). Contexto y reglas para
+Claude Code: [`CLAUDE.md`](CLAUDE.md) (Claude Code lo lee solo al abrir la carpeta).
+
+### Requisitos (una vez)
+
+- **Git** (viene con las herramientas de línea de comandos: `xcode-select --install`).
+- **Node 22**. Con [Homebrew](https://brew.sh): `brew install node@22` y sigue la indicación
+  que muestra para añadirlo al `PATH`. Con nvm: `nvm install` dentro de la carpeta (lee `.nvmrc`).
+- **Google Chrome** para abrir el HTML autónomo.
+- Solo para las pruebas de extremo a extremo: **Python 3** con **Pillow** (genera imágenes de
+  prueba sintéticas) y el Chromium de Playwright.
+
+### Clonar e instalar
 
 ```bash
-npm install
-npm run dev          # servidor de desarrollo
-npm run build        # comprueba tipos y genera dist/ (sitio estático)
-npm run build:archivo # genera la vista previa de archivo único
-npm test             # pruebas unitarias (Vitest)
-npm run fixtures     # genera imágenes de prueba en tests/fixtures/generated/
-npm run test:e2e     # pruebas de extremo a extremo en Chromium (Playwright)
+git clone https://github.com/brisadesignstudio/brisa-image-tool.git
+cd brisa-image-tool
+git switch claude/brisa-image-processor-4954sj   # ya es la rama por defecto
+npm ci                                           # dependencias exactas de package-lock.json
 ```
 
-Las pruebas de extremo a extremo usan la versión de producción en `localhost:4173`. Si ya
-hay un `vite preview` abierto en ese puerto, Playwright lo reutiliza: reinícialo después de
-cada `npm run build`.
+El `package-lock.json` incluye los binarios nativos de macOS (Apple Silicon e Intel), así que
+`npm ci` funciona tal cual.
 
-Estructura:
+### Abrir en desarrollo
+
+```bash
+npm run dev
+```
+
+Abre http://localhost:5173 en Chrome. Los cambios en `src/` se ven al momento. En desarrollo
+no se aplica la política de seguridad (CSP); en las compilaciones sí.
+
+### Generar el HTML autónomo
+
+```bash
+npm run build:archivo
+open -a "Google Chrome" dist-archivo/brisa-preparador-de-imagenes.html
+```
+
+Un solo archivo con todo dentro (códecs, tipografías, procesado). Funciona con doble clic,
+sin servidor y sin internet. Ábrelo con Chrome: Safari no está probado desde el disco.
+
+### Sitio estático (sin publicar)
+
+```bash
+npm run build      # genera dist/
+npm run preview    # lo sirve en http://localhost:4173 (solo en tu equipo)
+```
+
+### Comprobaciones y pruebas
+
+```bash
+npm run typecheck  # TypeScript
+npm test           # pruebas unitarias (Vitest)
+```
+
+Pruebas de extremo a extremo, la primera vez:
+
+```bash
+npx playwright install chromium          # el navegador de pruebas (una sola vez)
+python3 -m venv ~/.venvs/brisa-imagenes  # entorno de Python para Pillow (una sola vez)
+source ~/.venvs/brisa-imagenes/bin/activate
+pip install pillow
+npm run fixtures                         # imágenes de prueba sintéticas en tests/fixtures/generated/
+deactivate
+```
+
+El entorno de Python queda fuera del proyecto (en tu carpeta personal) para que el servidor
+de desarrollo no tenga que vigilarlo. Y después, cada vez:
+
+```bash
+npm run test:e2e
+```
+
+Las pruebas de extremo a extremo compilan y sirven la versión de producción en
+`localhost:4173`. Si ya hay un `npm run preview` abierto en ese puerto, Playwright lo reutiliza
+(aunque sea de una compilación anterior): ciérralo antes de lanzar las pruebas.
+
+### Continuar con Claude Code
+
+```bash
+cd brisa-image-tool
+claude
+```
+
+Claude Code carga `CLAUDE.md` (reglas, comandos, mapa del código y cómo verificar). Para el
+estado y los pendientes, pídele que lea `ESTADO.md`.
+
+### Estructura
 
 ```
-src/lib/        lógica pura: geometría, nombres, ajustes, lectura de formatos
-src/engine/     procesado en Web Workers: códecs WASM, cola de trabajos, ZIP
-src/state/      estado (Zustand), acciones y exportación
+src/lib/        lógica pura: geometría, nombres, ajustes, paquetes, lectura de formatos
+src/engine/     procesado en Web Workers: códecs WASM, cola de trabajos, peso máximo, ZIP
+src/state/      estado (Zustand), acciones, descarga y paquetes
 src/components/ interfaz (React)
 brand/          logotipos originales de Brisa
+scripts/        imágenes de prueba sintéticas
 tests/          pruebas unitarias, de extremo a extremo e imágenes de prueba
 ```
 
