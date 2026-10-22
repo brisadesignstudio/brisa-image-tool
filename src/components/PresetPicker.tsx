@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { BUILT_IN_PRESETS, CUSTOM_RECIPE } from '../lib/presets';
 import { describeSize } from '../lib/geometry';
 import { FORMAT_LABEL } from '../lib/format';
@@ -20,6 +21,7 @@ function PresetGroup({
   presets: readonly Preset[];
   onPick: (preset: RecipeSettings) => void;
 }) {
+  const inUse = useStore(useShallow((s) => s.recipes.map((r) => r.name)));
   return (
     <section className="picker__group">
       <h3 className="picker__group-title eyebrow">{title}</h3>
@@ -32,6 +34,12 @@ function PresetGroup({
                 {describeSize(preset)} · {formatName(preset)}
               </span>
               {preset.hint && <span className="preset__hint">{preset.hint}</span>}
+              {inUse.includes(preset.name) && (
+                <span className="preset__used">
+                  <Icon name="check" />
+                  Ya está en tus versiones
+                </span>
+              )}
             </button>
             {!preset.builtIn && (
               <button
@@ -65,7 +73,7 @@ export function PresetPicker({ onClose }: { onClose: () => void }) {
     const recipe = addRecipe(settings);
     dialog.current?.close();
     const selected = useStore.getState().selectedId;
-    // Una salida personalizada se abre directamente para darle medidas.
+    // Una versión a medida se abre directamente para darle medidas.
     if (settings === CUSTOM_RECIPE && selected) openEditor(selected, recipe.id);
   };
 
@@ -74,6 +82,7 @@ export function PresetPicker({ onClose }: { onClose: () => void }) {
       ref={dialog}
       className="picker"
       aria-labelledby="picker-title"
+      aria-describedby="picker-intro"
       onClose={() => {
         if (!dialog.current?.open) onClose();
       }}
@@ -82,9 +91,15 @@ export function PresetPicker({ onClose }: { onClose: () => void }) {
       }}
     >
       <div className="picker__head">
-        <h2 id="picker-title" className="picker__title display">
-          Añadir salida
-        </h2>
+        <div>
+          <h2 id="picker-title" className="picker__title display">
+            Añadir versión
+          </h2>
+          <p id="picker-intro" className="picker__intro">
+            Elige un destino. La versión se crea para todas tus imágenes y después puedes ajustar sus
+            medidas, encuadre y formato.
+          </p>
+        </div>
         <button type="button" className="icon-btn" onClick={() => dialog.current?.close()} aria-label="Cerrar">
           <Icon name="close" />
         </button>

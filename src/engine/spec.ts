@@ -1,5 +1,5 @@
 import { computeLayout, effectiveMode, type Layout } from '../lib/geometry';
-import { formatDimensions, resolveFormat } from '../lib/format';
+import { colorName, formatDimensions, resolveFormat } from '../lib/format';
 import type { CropRect, Recipe, RenderWarning, SourceFormat, SourceImage, SourceInfo } from '../lib/types';
 import type { RenderJob, RenderOutput } from './protocol';
 
@@ -67,17 +67,10 @@ export function buildSpec(image: SourceImage, recipe: Recipe, crop: CropRect | u
   };
 }
 
-function colorName(hex: string): string {
-  const names: Record<string, string> = {
-    '#ffffff': 'blanco',
-    '#000000': 'negro',
-    '#f6f0e8': 'crema',
-    '#631028': 'vino',
-  };
-  return names[hex.toLowerCase()] ?? hex.toUpperCase();
-}
-
-/** Avisos en lenguaje claro para una copia. */
+/**
+ * Avisos en lenguaje claro para una copia, con lo que se puede hacer.
+ * Primero lo que cambia el resultado; después la información.
+ */
 export function warningsFor(
   image: SourceImage,
   recipe: Recipe,
@@ -89,19 +82,21 @@ export function warningsFor(
   const warnings: RenderWarning[] = [];
   const mode = effectiveMode(recipe);
   if (layout.limited) {
-    warnings.push({
-      code: 'limited',
-      message:
-        mode === 'crop'
-          ? `Para ${formatDimensions(recipe.width as number, recipe.height as number)} px habría que ampliar el recorte. Se entrega a ${formatDimensions(layout.iw, layout.ih)} px, su resolución real.`
-          : `La original mide ${formatDimensions(info.width, info.height)} px. No se amplía para no perder nitidez.`,
-    });
-  }
-  if (layout.smallerInPad) {
-    warnings.push({
-      code: 'smaller-in-pad',
-      message: `La imagen se coloca a su tamaño real (${formatDimensions(layout.iw, layout.ih)} px): no se amplía para no perder nitidez.`,
-    });
+    const asked = formatDimensions(recipe.width as number, recipe.height as number);
+    if (mode === 'crop') {
+      // ¿Se puede agrandar el encuadre? Solo si aún no ocupa todo lo que permite la proporción.
+      const aspect = (recipe.width as number) / (recipe.height as number);
+      const roomy = layout.sw < Math.min(info.width, info.height * aspect) - 1;
+      warnings.push({
+        code: 'limited',
+        message: `El encuadre mide ${formatDimensions(layout.iw, layout.ih)} px en la original, menos que ${asked}: se entrega a ese tamaño, sin ampliar. Para la medida exacta, ${roomy ? 'agranda el encuadre o ' : ''}usa una original más grande.`,
+      });
+    } else {
+      warnings.push({
+        code: 'limited',
+        message: `La original (${formatDimensions(info.width, info.height)} px) es menor que la medida pedida: se entrega a su tamaño real, sin ampliar, para no perder nitidez.`,
+      });
+    }
   }
   if (spec.format === 'jpeg' && info.hasAlpha) {
     const background = spec.background === 'transparent' ? '#ffffff' : spec.background;
@@ -110,16 +105,30 @@ export function warningsFor(
       message: `JPG no admite transparencia: las zonas transparentes se rellenan de ${colorName(background)}. Elige PNG o WebP para conservarla.`,
     });
   }
-  if (output?.keptOriginal) {
+  if (output && !output.keptOriginal && output.size > image.size) {
     warnings.push({
-      code: 'kept-original',
-      message: 'Se entrega el archivo original intacto: comprimirlo de nuevo no lo hacía más ligero.',
+      code: 'heavier',
+      message: spec.lossless
+        ? 'Esta copia pesa más que la original: la compresión sin pérdida ocupa más con fotografías. Para aligerarla, elige JPG o WebP con pérdida.'
+        : 'Esta copia pesa más que la original. Para aligerarla, baja la calidad.',
     });
-  } else if (output && output.size > image.size) {
-    warnings.push({ code: 'heavier', message: 'Esta copia pesa más que la original.' });
   }
   if (info.animated) {
     warnings.push({ code: 'animated', message: 'Es una imagen animada: solo se usa el primer fotograma.' });
+  }
+  if (layout.smallerInPad) {
+    warnings.push({
+      code: 'smaller-in-pad',
+      message: `La original es menor que el hueco: se coloca a su tamaño real (${formatDimensions(layout.iw, layout.ih)} px), sin ampliar, y el lienzo mantiene ${formatDimensions(layout.cw, layout.ch)} px.`,
+    });
+  }
+  if (output?.keptOriginal) {
+    warnings.push({
+      code: 'kept-original',
+      message: spec.lossless
+        ? 'Se entrega la original intacta: recomprimirla no la hacía más ligera.'
+        : 'Se entrega la original intacta: recomprimirla con esta calidad no la hacía más ligera. Si necesitas que pese menos, baja la calidad.',
+    });
   }
   if (info.icc === 'other') {
     warnings.push({

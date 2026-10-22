@@ -4,7 +4,7 @@ import { sniffFormat } from '../lib/sniff';
 import type { CropRect, NamingSettings, PreviewBackground, Recipe, RecipeSettings, SourceImage } from '../lib/types';
 import type { AnalyzeResult } from '../engine/protocol';
 import { getPool, syncRenders } from '../engine/renderer';
-import { itemKey, showToast, useStore } from './store';
+import { itemKey, showNotice, useStore } from './store';
 
 const set = useStore.setState;
 const get = useStore.getState;
@@ -31,11 +31,12 @@ export async function addFiles(list: FileList | File[]) {
   if (rejected.length) {
     const names = rejected.slice(0, 3).map((f) => `«${f.name}»`).join(', ');
     const more = rejected.length > 3 ? ` y ${rejected.length - 3} más` : '';
-    showToast(
+    showNotice(
+      'imagenes',
       'error',
       rejected.length === 1
-        ? `${names} no es una imagen JPG, PNG ni WebP, así que no se ha añadido.`
-        : `${names}${more} no son imágenes JPG, PNG ni WebP, así que no se han añadido.`,
+        ? `${names} no se puede abrir: solo se admiten JPG, PNG y WebP. Expórtala en uno de esos formatos y vuelve a añadirla.`
+        : `${names}${more} no se pueden abrir: solo se admiten JPG, PNG y WebP. Expórtalas en uno de esos formatos y vuelve a añadirlas.`,
     );
   }
   if (accepted.length === 0) return;
@@ -128,14 +129,43 @@ export function updateRecipe(id: string, patch: Partial<RecipeSettings>) {
   set((s) => ({ recipes: s.recipes.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
 }
 
+function pickKeys<T>(record: Record<string, T>, test: (key: string) => boolean): Record<string, T> {
+  const picked: Record<string, T> = {};
+  for (const [key, value] of Object.entries(record)) if (test(key)) picked[key] = value;
+  return picked;
+}
+
+/** Quita una versión de todas las imágenes; se puede deshacer (con sus encuadres) desde el aviso. */
 export function removeRecipe(id: string) {
+  const s = get();
+  const index = s.recipes.findIndex((r) => r.id === id);
+  if (index < 0) return;
+  const recipe = s.recipes[index];
   const ofRecipe = (key: string) => key.endsWith(`|${id}`);
-  set((s) => ({
+  const crops = pickKeys(s.crops, ofRecipe);
+  const excluded = pickKeys(s.excluded, ofRecipe);
+  set({
     recipes: s.recipes.filter((r) => r.id !== id),
     crops: dropKeys(s.crops, ofRecipe),
     excluded: dropKeys(s.excluded, ofRecipe),
     editor: s.editor?.recipeId === id ? null : s.editor,
-  }));
+  });
+  showNotice('versiones', 'info', `Versión «${recipe.name}» quitada de todas las imágenes.`, {
+    label: 'Deshacer',
+    focusAfter: `[data-recipe="${recipe.id}"] .chip__label`,
+    run: () => {
+      set((now) => {
+        const recipes = [...now.recipes];
+        recipes.splice(Math.min(index, recipes.length), 0, recipe);
+        return {
+          recipes,
+          crops: { ...now.crops, ...crops },
+          excluded: { ...now.excluded, ...excluded },
+          notice: null,
+        };
+      });
+    },
+  });
 }
 
 export function saveRecipeAsPreset(recipeId: string, name: string) {
@@ -143,7 +173,7 @@ export function saveRecipeAsPreset(recipeId: string, name: string) {
   if (!recipe) return;
   const preset = presetFromRecipe(recipe, name.trim() || recipe.name);
   set((s) => ({ customPresets: [...s.customPresets, preset] }));
-  showToast('ok', `Ajuste «${preset.name}» guardado en este dispositivo.`);
+  showNotice('version', 'ok', `Ajuste «${preset.name}» guardado en este equipo. Lo encontrarás en «Añadir versión».`);
 }
 
 export function deletePreset(id: string) {
@@ -190,6 +220,6 @@ export function closeEditor() {
   set({ editor: null });
 }
 
-export function dismissToast() {
-  set({ toast: null });
+export function dismissNotice() {
+  set({ notice: null });
 }

@@ -6,8 +6,8 @@ import { ExportBar } from './components/ExportBar';
 import { Header } from './components/Header';
 import { ImageList } from './components/ImageList';
 import { ImageOutputs } from './components/ImageOutputs';
-import { OutputsBar } from './components/OutputsBar';
-import { Toast } from './components/Toast';
+import { NoticeAnnouncer } from './components/Notice';
+import { VersionsBar } from './components/VersionsBar';
 import { Welcome } from './components/Welcome';
 
 /** Se pueden soltar imágenes en cualquier parte de la ventana. */
@@ -63,8 +63,9 @@ export function App() {
       {hasImages ? (
         <div className="workspace">
           <ImageList />
-          <main className="main">
-            <OutputsBar />
+          {/* Zona con desplazamiento propio en escritorio: enfocable para moverse con el teclado. */}
+          <main className="main" aria-label="Versiones y revisión" tabIndex={0}>
+            <VersionsBar />
             <ImageOutputs />
           </main>
           <ExportBar />
@@ -83,8 +84,8 @@ export function App() {
           <p className="display">Suelta para añadir tus imágenes</p>
         </div>
       )}
+      <NoticeAnnouncer areas={['imagenes', 'versiones', 'descarga']} />
       <Editor />
-      <Toast />
     </>
   );
 }

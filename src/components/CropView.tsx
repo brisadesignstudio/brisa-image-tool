@@ -117,8 +117,9 @@ export function CropView({ image, recipe }: { image: SourceImage; recipe: Recipe
     if (event.key === 'ArrowRight') next = { ...crop, x: clamp(crop.x + step, 0, 1 - crop.w) };
     if (event.key === 'ArrowUp') next = { ...crop, y: clamp(crop.y - step, 0, 1 - crop.h) };
     if (event.key === 'ArrowDown') next = { ...crop, y: clamp(crop.y + step, 0, 1 - crop.h) };
-    if (event.key === '+' || event.key === '-') {
-      const factor = event.key === '+' ? 1.05 : 0.95;
+    // «=» es la tecla del + sin mayúsculas en teclados ingleses.
+    if (event.key === '+' || event.key === '=' || event.key === '-') {
+      const factor = event.key === '-' ? 0.95 : 1.05;
       const grown = { ...crop, w: crop.w * factor, h: crop.h * factor };
       next = fitCrop(
         { ...grown, x: crop.x + (crop.w - grown.w) / 2, y: crop.y + (crop.h - grown.h) / 2 },
@@ -151,10 +152,9 @@ export function CropView({ image, recipe }: { image: SourceImage; recipe: Recipe
         <p className="note note--info crop__hint" role="status" data-testid="crop-hint">
           <Icon name="info" />
           <span>
-            La proporción de esta imagen es igual o muy parecida a la de la salida
-            {ratio ? ` (${ratio})` : ''}, así que el encuadre ocupa casi toda la imagen y apenas se
-            puede mover. Para elegir otra zona, hazlo más pequeño desde una esquina (o con la tecla
-            -) y después muévelo.
+            La proporción de esta imagen es igual o muy parecida a la de la versión
+            {ratio ? ` (${ratio})` : ''}: el encuadre ocupa casi toda la imagen y apenas se puede mover.
+            Para elegir otra zona, redúcelo desde una esquina (o con la tecla −) y después muévelo.
           </span>
         </p>
       )}

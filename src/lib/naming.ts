@@ -1,10 +1,10 @@
 import type { FolderMode, NamingSettings, SourceFormat } from './types';
 
-export const DEFAULT_PATTERN = '{nombre}-{salida}';
+export const DEFAULT_PATTERN = '{nombre}-{version}';
 
 export const PATTERN_TOKENS = [
   { token: '{nombre}', label: 'nombre de la imagen' },
-  { token: '{salida}', label: 'nombre corto de la salida' },
+  { token: '{version}', label: 'nombre corto de la versión' },
   { token: '{ancho}', label: 'ancho en px' },
   { token: '{alto}', label: 'alto en px' },
   { token: '{n}', label: 'número de imagen' },
@@ -65,12 +65,14 @@ export interface NameTokens {
   n: number;
 }
 
-/** Nombre de archivo sin extensión a partir del patrón. */
+/** Nombre de archivo sin extensión a partir del patrón. {salida} sigue valiendo por compatibilidad. */
 export function renderPattern(pattern: string, tokens: NameTokens, normalize: boolean): string {
   const source = pattern.trim() || DEFAULT_PATTERN;
-  const raw = source.replace(/\{(nombre|salida|ancho|alto|n)\}/g, (_, key: keyof NameTokens) =>
-    key === 'n' ? String(tokens.n).padStart(2, '0') : String(tokens[key]),
-  );
+  const raw = source.replace(/\{(nombre|version|versión|salida|ancho|alto|n)\}/g, (_, key: string) => {
+    if (key === 'n') return String(tokens.n).padStart(2, '0');
+    if (key === 'version' || key === 'versión' || key === 'salida') return tokens.salida;
+    return String(tokens[key as 'nombre' | 'ancho' | 'alto']);
+  });
   const name = normalize ? slugify(raw) : safeFileName(raw);
   return name || 'imagen';
 }

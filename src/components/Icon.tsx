@@ -16,7 +16,9 @@ export type IconName =
   | 'sliders'
   | 'sparkle'
   | 'reset'
-  | 'save';
+  | 'save'
+  | 'image'
+  | 'stack';
 
 const PATHS: Record<IconName, ReactNode> = {
   upload: (
@@ -111,6 +113,19 @@ const PATHS: Record<IconName, ReactNode> = {
       <path d="M6 4h9.5L20 8.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" />
       <path d="M8 4v4.5h7" />
       <path d="M8 20v-6h8v6" />
+    </>
+  ),
+  image: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="2.5" />
+      <circle cx="9.5" cy="10" r="1.6" />
+      <path d="m4.5 17 4.5-4.5 3 3 2.5-2.5 5 5" />
+    </>
+  ),
+  stack: (
+    <>
+      <rect x="8" y="3.5" width="12.5" height="12.5" rx="2.2" />
+      <path d="M16 20.5H6A2.5 2.5 0 0 1 3.5 18V8" />
     </>
   ),
 };

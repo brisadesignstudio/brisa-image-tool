@@ -30,7 +30,7 @@ async function decodeWithBrowser(file: Blob): Promise<Decoded> {
     return { kind: 'bitmap', width: bitmap.width, height: bitmap.height, bitmap };
   } catch {
     throw new FriendlyError(
-      'No se pudo leer esta imagen. Puede que esté dañada o que sea demasiado grande para el navegador.',
+      'No se pudo leer esta imagen: puede estar dañada o ser demasiado grande para el navegador. Vuelve a exportarla (si es enorme, a un tamaño menor) y añádela de nuevo.',
     );
   }
 }
@@ -225,7 +225,11 @@ export async function render(job: RenderJob, decoded: Decoded): Promise<{ output
 export async function open(file: Blob): Promise<{ insp: Inspection; decoded: Decoded }> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const insp = inspect(bytes);
-  if (!insp) throw new FriendlyError('Este archivo no es una imagen JPG, PNG ni WebP.');
+  if (!insp) {
+    throw new FriendlyError(
+      'No se pudo leer este archivo: puede estar dañado o no ser un JPG, PNG o WebP válido. Vuelve a exportarlo y añádelo de nuevo.',
+    );
+  }
   const decoded = await decode(file, insp, bytes);
   return { insp, decoded };
 }

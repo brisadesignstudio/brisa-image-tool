@@ -34,7 +34,10 @@ test.describe('Preparador de imágenes', () => {
       'icono-64x64.png',
       'no-soy-una-imagen.jpg',
     ]);
-    await expect(page.locator('.toast')).toContainText('no-soy-una-imagen.jpg');
+    // El aviso aparece junto a la lista, dice qué archivo y qué hacer.
+    const notice = page.getByTestId('aviso-imagenes');
+    await expect(notice).toContainText('no-soy-una-imagen.jpg');
+    await expect(notice).toContainText('JPG, PNG y WebP');
     const items = page.locator('.image-item');
     await expect(items).toHaveCount(5);
     // Guardada tumbada con orientación EXIF: se lee de pie.
@@ -52,7 +55,7 @@ test.describe('Preparador de imágenes', () => {
     await settle(page);
     const web = page.locator('[data-testid=output-card]').filter({ hasText: 'Contenido web' });
     await expect(web).toContainText('640 × 480 px');
-    await expect(web).toContainText('No se amplía');
+    await expect(web).toContainText('sin ampliar');
   });
 
   test('peso antes y después, y el último ajuste de calidad no se pierde al cerrar', async ({ page }) => {
@@ -61,12 +64,15 @@ test.describe('Preparador de imágenes', () => {
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
     const editor = page.getByTestId('editor');
-    const weight = editor.locator('.compare-table tr', { hasText: 'Peso' });
-    await expect(weight).toContainText('1,8 MB');
-    await expect(weight.locator('strong')).toBeVisible();
-    const before = await weight.locator('strong').innerText();
+    // Original y resultado de esta imagen, con el peso de cada uno.
+    const summary = editor.getByTestId('resumen');
+    await expect(summary).toContainText('1,8 MB');
+    await expect(summary).toContainText('compresión con pérdida, calidad 90');
+    const copy = summary.getByTestId('peso-copia');
+    await expect(copy).toBeVisible();
+    const before = await copy.innerText();
     await editor.locator('#quality').fill('35');
-    await expect(weight.locator('strong')).not.toHaveText(before, { timeout: 30_000 });
+    await expect(copy).not.toHaveText(before, { timeout: 30_000 });
     await editor.locator('#quality').fill('60');
     await editor.getByRole('button', { name: 'Listo' }).click();
     const card = page.locator('[data-testid=output-card]').filter({ hasText: 'Instagram vertical 4:5' });
@@ -79,7 +85,7 @@ test.describe('Preparador de imágenes', () => {
     await settle(page);
     const card = page.locator('[data-testid=output-card]').filter({ hasText: 'Instagram vertical 4:5' });
     const firstSrc = await card.locator('img').getAttribute('src');
-    await card.getByRole('button', { name: 'Ajustar', exact: true }).click();
+    await card.getByRole('button', { name: 'Ajustar Instagram vertical 4:5' }).click();
     const box = page.getByTestId('crop-box');
     await expect(box).toBeVisible();
     const rect = (await box.boundingBox())!;
@@ -126,7 +132,7 @@ test.describe('Preparador de imágenes', () => {
   test('márgenes con fondo transparente: el PNG conserva la transparencia', async ({ page }) => {
     await page.goto('/');
     await addImages(page, ['logo-transparente-1600x800.png']);
-    await page.getByRole('button', { name: 'Añadir salida' }).click();
+    await page.getByRole('button', { name: 'Añadir versión' }).click();
     await page.getByRole('button', { name: /Logo para perfil/ }).click();
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Logo para perfil' }).click();
@@ -142,16 +148,20 @@ test.describe('Preparador de imágenes', () => {
     expect(png.data[center + 3]).toBeGreaterThan(0);
     // El JPG de la misma imagen no puede tener transparencia: se rellena y se avisa.
     expect(inspect(entry(files, 'ig-4x5/logo-transparente-1600x800-ig-4x5.jpg'))!.format).toBe('jpeg');
+    // La conversión pedida se respeta: el PNG pasa a WebP aunque la original fuera PNG.
+    const webp = inspect(entry(files, 'web/logo-transparente-1600x800-web.webp'))!;
+    expect(webp.format).toBe('webp');
+    expect(webp.alphaPossible).toBe(true);
   });
 
   test('los logos no se alteran: sin cambios de tamaño salen idénticos píxel a píxel', async ({ page }) => {
     await page.goto('/');
     await addImages(page, ['brisa-logotipo-2400x400.png', 'ilustracion-sin-perdida.webp', 'degradado-alfa-1024x512.png']);
     // Solo «Solo optimizar»: mismo tamaño y formato.
-    for (const name of ['Quitar la salida Contenido web', 'Quitar la salida Instagram vertical 4:5']) {
+    for (const name of ['Quitar la versión Contenido web', 'Quitar la versión Instagram vertical 4:5']) {
       await page.getByRole('button', { name }).click();
     }
-    await page.getByRole('button', { name: 'Añadir salida' }).click();
+    await page.getByRole('button', { name: 'Añadir versión' }).click();
     await page.getByRole('button', { name: /Solo optimizar/ }).click();
     await settle(page);
     const files = await downloadZip(page);
@@ -167,13 +177,14 @@ test.describe('Preparador de imágenes', () => {
     }
   });
 
-  test('ZIP ordenado por salida, con nombres limpios y las originales intactas', async ({ page }) => {
+  test('ZIP ordenado por versión, con nombres limpios y las originales intactas', async ({ page }) => {
     await page.goto('/');
     await addImages(page, ['foto-grande-6000x4000.jpg', 'icono-64x64.png']);
-    await page.getByLabel('Incluir las originales').check();
+    await page.getByRole('button', { name: 'Más opciones' }).click();
+    await page.getByLabel('Incluir las originales intactas').check();
     await settle(page);
     await page.getByRole('button', { name: 'Ver icono-64x64.png' }).click();
-    await page.getByLabel('Nombre para las copias').fill('Ícono Brisa');
+    await page.getByLabel('Nombre base de sus archivos').fill('Ícono Brisa');
     const files = await downloadZip(page);
     const paths = Object.keys(files).sort();
     expect(paths.every((p) => /^brisa-imagenes-\d{4}-\d{2}-\d{2}\//.test(p))).toBe(true);
@@ -193,14 +204,19 @@ test.describe('Preparador de imágenes', () => {
     await settle(page);
     await page.getByRole('button', { name: 'Ajustar Contenido web' }).click();
     const editor = page.getByTestId('editor');
+    // Guardar como ajuste está en «Más opciones» de la versión.
+    await editor.getByText('Más opciones', { exact: true }).click();
     await editor.getByLabel('Nombre del ajuste').fill('Blog Brisa');
     await editor.getByRole('button', { name: 'Guardar' }).click();
+    await expect(editor.getByTestId('aviso-version')).toContainText('guardado en este equipo');
     await editor.getByRole('button', { name: 'Listo' }).click();
+    await page.getByRole('button', { name: 'Más opciones' }).click();
     await page.getByLabel('Nombre de los archivos').fill('{n}-{nombre}');
     await page.reload();
     await addImages(page, ['foto-pequena-640x480.jpg']);
+    await page.getByRole('button', { name: 'Más opciones' }).click();
     await expect(page.getByLabel('Nombre de los archivos')).toHaveValue('{n}-{nombre}');
-    await page.getByRole('button', { name: 'Añadir salida' }).click();
+    await page.getByRole('button', { name: 'Añadir versión' }).click();
     await expect(page.locator('.preset', { hasText: 'Blog Brisa' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Borrar el ajuste Blog Brisa' })).toBeVisible();
   });

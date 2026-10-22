@@ -8,11 +8,12 @@ import {
   slugify,
   todayStamp,
 } from '../lib/naming';
+import { formatBytes } from '../lib/format';
 import type { NamingSettings, Recipe, RenderResult, SourceImage } from '../lib/types';
 import type { ZipEntry } from '../engine/protocol';
 import { buildSpec } from '../engine/spec';
 import { getPool, syncRenders } from '../engine/renderer';
-import { itemKey, showToast, useStore, type AppState } from './store';
+import { itemKey, showNotice, useStore, type AppState } from './store';
 
 export function zipBaseName(naming: NamingSettings, date = new Date()): string {
   return `${slugify(naming.zipName) || 'brisa-imagenes'}-${todayStamp(date)}`;
@@ -149,18 +150,24 @@ export async function exportZip() {
     syncRenders();
     const items = plannedItems(useStore.getState());
     if (items.length === 0) {
-      showToast('info', 'No hay copias para descargar: añade imágenes y al menos una salida.');
+      showNotice('descarga', 'info', 'Aún no hay nada que descargar: añade imágenes y al menos una versión.');
       return;
     }
     await waitForRenders(items);
     const state = useStore.getState();
     const failed = items.filter((item) => state.results[item.key]?.status === 'error');
     if (failed.length) {
-      showToast(
+      const names = failed
+        .slice(0, 3)
+        .map((item) => `${item.image.name} (${item.recipe.name})`)
+        .join(', ');
+      const more = failed.length > 3 ? ` y ${failed.length - 3} más` : '';
+      showNotice(
+        'descarga',
         'error',
         failed.length === 1
-          ? 'Una copia no se pudo preparar. Revísala (está marcada) o exclúyela del ZIP.'
-          : `${failed.length} copias no se pudieron preparar. Revísalas (están marcadas) o exclúyelas del ZIP.`,
+          ? `No se pudo preparar una copia: ${names}. Pulsa «Reintentar» en su tarjeta o desactiva «Incluir en la descarga» y vuelve a descargar.`
+          : `No se pudieron preparar ${failed.length} copias: ${names}${more}. Pulsa «Reintentar» en sus tarjetas o desactiva «Incluir en la descarga» y vuelve a descargar.`,
       );
       return;
     }
@@ -168,10 +175,20 @@ export async function exportZip() {
     const entries = planZip(state, date);
     useStore.setState({ exporting: { phase: 'zipping', done: 0, total: entries.length } });
     const zip = await getPool().run<Blob>({ type: 'zip', entries }, { priority: 100 });
-    download(zip, `${zipBaseName(state.naming, date)}.zip`);
-    showToast('ok', `Listo: ${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'} en tu ZIP.`);
+    const fileName = `${zipBaseName(state.naming, date)}.zip`;
+    download(zip, fileName);
+    const unreadable = state.images.filter((i) => i.status === 'error');
+    const skipped = unreadable.length
+      ? ` No incluye ${unreadable.length === 1 ? `«${unreadable[0].name}», que no se pudo leer` : `${unreadable.length} imágenes que no se pudieron leer`}.`
+      : '';
+    showNotice(
+      'descarga',
+      'ok',
+      `Descarga iniciada: ${fileName} (${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'}, ${formatBytes(zip.size)}). Búscalo en las descargas de tu navegador.${skipped}`,
+    );
   } catch (error) {
-    showToast('error', error instanceof Error ? error.message : 'No se pudo crear el ZIP.');
+    const reason = error instanceof Error ? error.message : 'error desconocido';
+    showNotice('descarga', 'error', `No se pudo crear el ZIP (${reason}). Vuelve a intentarlo; si se repite, descarga menos imágenes a la vez.`);
   } finally {
     useStore.setState({ exporting: null });
   }

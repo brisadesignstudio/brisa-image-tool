@@ -1,5 +1,13 @@
 import { FileButton } from './FileButton';
 import { Icon } from './Icon';
+import { Notice } from './Notice';
+
+const STEPS = [
+  ['Añade tus imágenes', 'JPG, PNG o WebP. Las originales no se tocan.'],
+  ['Elige las versiones', 'Web, Instagram, Pinterest… o tus propias medidas.'],
+  ['Revisa', 'Encuadre, formato, calidad y peso de cada copia.'],
+  ['Descarga', 'Un ZIP con nombres claros y carpetas ordenadas.'],
+] as const;
 
 export function Welcome({ dragging }: { dragging: boolean }) {
   return (
@@ -23,24 +31,19 @@ export function Welcome({ dragging }: { dragging: boolean }) {
           <p className="dropzone__hint">o, si lo prefieres,</p>
           <FileButton className="btn btn--primary btn--large">Elegir imágenes</FileButton>
           <p className="dropzone__hint">JPG, PNG o WebP · puedes elegir varias a la vez</p>
+          <Notice area="imagenes" />
         </div>
       </section>
       <ol className="steps">
-        <li>
-          <span className="steps__num">1</span>
-          <strong>Carga tus imágenes</strong>
-          <span className="steps__text">Las originales no se tocan: se trabaja siempre sobre copias.</span>
-        </li>
-        <li>
-          <span className="steps__num">2</span>
-          <strong>Elige las salidas</strong>
-          <span className="steps__text">Web, Instagram, Pinterest… o tus propias medidas, guardadas para la próxima.</span>
-        </li>
-        <li>
-          <span className="steps__num">3</span>
-          <strong>Descarga tu ZIP</strong>
-          <span className="steps__text">Con nombres claros y todo ordenado en carpetas.</span>
-        </li>
+        {STEPS.map(([title, text], i) => (
+          <li key={title}>
+            <span className="steps__num" aria-hidden="true">
+              {i + 1}
+            </span>
+            <strong>{title}</strong>
+            <span className="steps__text">{text}</span>
+          </li>
+        ))}
       </ol>
     </main>
   );

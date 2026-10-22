@@ -58,16 +58,12 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
   const size = result?.size;
   const fileName =
     result?.format && result.width ? outputFileName(naming, image, recipe, index, result) : null;
+  const edit = () => openEditor(image.id, recipe.id);
 
   return (
-    <article className="card" data-excluded={excluded} data-testid="output-card">
-      <button
-        type="button"
-        className={`card__view bg-${previewBg}`}
-        data-stale={pending && Boolean(result?.url)}
-        onClick={() => openEditor(image.id, recipe.id)}
-        aria-label={`Ajustar ${recipe.name}`}
-      >
+    <article className="card" data-excluded={excluded} data-testid="output-card" aria-label={recipe.name}>
+      {/* La vista previa abre el editor con el ratón; con teclado se usa «Ajustar». */}
+      <div className={`card__view bg-${previewBg}`} data-stale={pending && Boolean(result?.url)} onClick={edit}>
         {result?.url && <img src={result.url} alt={`Vista previa de ${recipe.name}`} />}
         {pending && (
           <span className="status card__badge">
@@ -81,7 +77,13 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
             No se pudo preparar
           </span>
         )}
-      </button>
+        {excluded && (
+          <span className="card__flag">
+            <Icon name="close" />
+            No se descargará
+          </span>
+        )}
+      </div>
       <div className="card__body">
         <div>
           <h3 className="card__title display">{recipe.name}</h3>
@@ -89,16 +91,21 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
             {result?.width && result.height
               ? `${formatDimensions(result.width, result.height)} px`
               : describeSize(recipe)}{' '}
-            · {FORMAT_LABEL[format]} · {describeOutputQuality(format, recipe.quality, lossless)}
+            · {FORMAT_LABEL[format]} ·{' '}
+            {result?.keptOriginal
+              ? 'original sin recomprimir'
+              : describeOutputQuality(format, recipe.quality, lossless)}
           </p>
         </div>
-        <p className="weight tabular" aria-label="Peso de la original y de la copia">
+        <p className="weight tabular">
+          <span className="visually-hidden">Peso de la original: </span>
           <span className="weight__before" title="Peso de la original">
             {formatBytes(image.size)}
           </span>
           <Icon name="arrow-right" />
+          <span className="visually-hidden">; de la copia: </span>
           <span className="weight__after" title="Peso de la copia">
-            {size !== undefined ? formatBytes(size) : '…'}
+            {size !== undefined ? formatBytes(size) : 'calculando…'}
           </span>
           {size !== undefined && (
             <span className={`delta${size > image.size ? ' delta--up' : ''}`}>
@@ -126,13 +133,18 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
           </p>
         )}
         <div className="card__foot">
-          <button type="button" className="btn btn--secondary btn--small" onClick={() => openEditor(image.id, recipe.id)}>
+          <button
+            type="button"
+            className="btn btn--secondary btn--small"
+            onClick={edit}
+            aria-label={`Ajustar ${recipe.name}`}
+          >
             <Icon name="sliders" />
             Ajustar
           </button>
           <label className="switch">
             <input type="checkbox" checked={!excluded} onChange={() => toggleExcluded(image.id, recipe.id)} />
-            Incluir en el ZIP
+            Incluir en la descarga
           </label>
         </div>
       </div>

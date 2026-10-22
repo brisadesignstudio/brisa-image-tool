@@ -1,22 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { itemKey, useStore } from '../state/store';
-import { resetCrop, saveRecipeAsPreset, updateRecipe } from '../state/actions';
-import {
-  FORMAT_LABEL,
-  describeOutputQuality,
-  describeSourceQuality,
-  formatBytes,
-  formatDelta,
-  formatDimensions,
-  resolveFormat,
-  supportsAlpha,
-} from '../lib/format';
+import { saveRecipeAsPreset, updateRecipe } from '../state/actions';
+import { FORMAT_LABEL, colorName, resolveFormat, supportsAlpha } from '../lib/format';
 import { MAX_SIDE } from '../lib/presets';
-import { computeLayout, effectiveMode } from '../lib/geometry';
-import { buildSpec, isLossless } from '../engine/spec';
-import type { FitMode, OutputFormat, Recipe, RecipeSettings, SourceImage } from '../lib/types';
-import { Notes } from './OutputCard';
+import { effectiveMode } from '../lib/geometry';
+import { isLossless } from '../engine/spec';
+import type { FitMode, OutputFormat, Recipe, RecipeSettings, SourceFormat, SourceImage } from '../lib/types';
 import { Icon } from './Icon';
+import { Notice } from './Notice';
 
 function NumberField({
   label,
@@ -133,11 +123,21 @@ const BACKGROUNDS = [
   { value: '#000000', label: 'Negro' },
 ];
 
+const MODE_HINT: Record<FitMode, string> = {
+  fit: 'La imagen completa, sin recortes ni bordes. Las medidas son el máximo.',
+  crop: 'Rellena la medida exacta recortando. Eliges el encuadre de cada imagen en la vista.',
+  pad: 'La imagen completa sobre un lienzo de la medida exacta, con aire alrededor.',
+};
+
+const FORMAT_HINT: Record<SourceFormat, string> = {
+  jpeg: 'JPG: para fotos. Compresión con pérdida; no admite transparencia.',
+  png: 'PNG: compresión sin pérdida y transparencia. Ideal para logos; con fotos pesa más.',
+  webp: 'WebP: el más ligero para web. Admite transparencia.',
+};
+
+/** Ajustes compartidos de la versión: se aplican a todas las imágenes. */
 export function RecipeForm({ recipe, image }: { recipe: Recipe; image: SourceImage }) {
   const info = image.info!;
-  const key = itemKey(image.id, recipe.id);
-  const result = useStore((s) => s.results[key]);
-  const crop = useStore((s) => s.crops[key]);
   const [presetName, setPresetName] = useState(recipe.name);
   useEffect(() => setPresetName(recipe.name), [recipe.id, recipe.name]);
 
@@ -145,12 +145,8 @@ export function RecipeForm({ recipe, image }: { recipe: Recipe; image: SourceIma
   const format = resolveFormat(recipe.format, info.format);
   const lossless = isLossless(recipe, info, format);
   const mode = effectiveMode(recipe);
-  const spec = buildSpec(image, recipe, crop);
-  const layout = spec?.layout ?? computeLayout(info.width, info.height, recipe);
   const showBackground = mode === 'pad' || (format === 'jpeg' && info.hasAlpha);
   const background = format === 'jpeg' && recipe.background === 'transparent' ? '#ffffff' : recipe.background;
-  const done = result?.status === 'done' && result.key === spec?.key;
-  const keepsAlpha = supportsAlpha(format) && (info.hasAlpha || (mode === 'pad' && background === 'transparent'));
 
   const setMode = (next: FitMode) => {
     if (next === 'fit') return update({ mode: 'fit' });
@@ -168,20 +164,185 @@ export function RecipeForm({ recipe, image }: { recipe: Recipe; image: SourceIma
   ];
 
   return (
-    <>
-      <section className="side-section">
-        <h3 className="side-section__title display">Esta salida</h3>
-        <p className="side-section__hint">
-          Lo que cambies aquí se aplica a todas las imágenes. El encuadre es solo para esta.
-        </p>
-        <div className="side-stack">
+    <div className="side-stack">
+      <section className="group" aria-labelledby="group-size">
+        <h4 id="group-size" className="group__title">
+          Medidas y encaje
+        </h4>
+        <div className="field">
+          <span className="field__label" id="dims-label">
+            {recipe.mode === 'fit' ? 'Medida máxima' : 'Medida exacta'}
+          </span>
+          <div className="dims" role="group" aria-labelledby="dims-label">
+            <NumberField
+              label="Ancho"
+              value={recipe.width}
+              allowEmpty={recipe.mode === 'fit'}
+              onCommit={(width) => update({ width })}
+            />
+            <span className="dims__x" aria-hidden="true">
+              ×
+            </span>
+            <NumberField
+              label="Alto"
+              value={recipe.height}
+              allowEmpty={recipe.mode === 'fit'}
+              onCommit={(height) => update({ height })}
+            />
+          </div>
+          <span className="field__hint">
+            {recipe.mode === 'fit'
+              ? 'Deja una vacía y se calcula sola. Nunca se amplía la original.'
+              : 'Ancho y alto del archivo. Nunca se amplía la original.'}
+          </span>
+        </div>
+        <div className="field">
+          <span className="field__label" id="mode-label">
+            Encaje
+          </span>
+          <div className="seg seg--block" role="group" aria-labelledby="mode-label">
+            <button type="button" aria-pressed={recipe.mode === 'fit'} onClick={() => setMode('fit')}>
+              Mantener proporción
+            </button>
+            <button type="button" aria-pressed={recipe.mode === 'crop'} onClick={() => setMode('crop')}>
+              Recortar
+            </button>
+            <button type="button" aria-pressed={recipe.mode === 'pad'} onClick={() => setMode('pad')}>
+              Márgenes
+            </button>
+          </div>
+          <span className="field__hint">{MODE_HINT[recipe.mode]}</span>
+        </div>
+        {mode === 'pad' && (
+          <div className="field">
+            <div className="quality-row">
+              <label className="field__label" htmlFor="margin">
+                Margen
+              </label>
+              <output htmlFor="margin" className="tabular">
+                {recipe.margin} %
+              </output>
+            </div>
+            <input
+              id="margin"
+              className="range"
+              type="range"
+              min={0}
+              max={40}
+              value={recipe.margin}
+              onChange={(event) => update({ margin: Number(event.target.value) })}
+            />
+          </div>
+        )}
+        {showBackground && (
+          <div className="field">
+            <span className="field__label" id="bg-label">
+              Fondo exportado
+            </span>
+            <div className="swatch-row" role="group" aria-labelledby="bg-label">
+              {supportsAlpha(format) && (
+                <button
+                  type="button"
+                  className="swatch swatch--transparent"
+                  aria-pressed={background === 'transparent'}
+                  onClick={() => update({ background: 'transparent' })}
+                  aria-label="Transparente"
+                  title="Transparente"
+                />
+              )}
+              {BACKGROUNDS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className="swatch"
+                  style={{ background: option.value }}
+                  aria-pressed={background === option.value}
+                  onClick={() => update({ background: option.value })}
+                  aria-label={option.label}
+                  title={option.label}
+                />
+              ))}
+              <label
+                className="swatch swatch--custom"
+                data-selected={background !== 'transparent' && !BACKGROUNDS.some((b) => b.value === background)}
+                title="Otro color"
+              >
+                <input
+                  type="color"
+                  value={background === 'transparent' ? '#ffffff' : background}
+                  onChange={(event) => update({ background: event.target.value })}
+                  aria-label="Otro color"
+                />
+              </label>
+            </div>
+            <span className="field__hint">
+              {mode === 'pad'
+                ? `Lienzo alrededor de la imagen: ${colorName(background)}. Se guarda en el archivo.`
+                : `JPG no admite transparencia: las zonas transparentes se rellenan de ${colorName(background)}.`}
+            </span>
+          </div>
+        )}
+      </section>
+
+      <section className="group" aria-labelledby="group-format">
+        <h4 id="group-format" className="group__title">
+          Formato y compresión
+        </h4>
+        <div className="field">
+          <span className="field__label" id="format-label">
+            Formato
+          </span>
+          <div className="seg seg--block" role="group" aria-labelledby="format-label">
+            {formats.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={recipe.format === option.value}
+                onClick={() => update({ format: option.value })}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <span className="field__hint">{FORMAT_HINT[format]}</span>
+        </div>
+        {format === 'webp' && (
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={lossless}
+              disabled={recipe.format === 'original' && info.webpLossless === true}
+              onChange={(event) => update({ lossless: event.target.checked })}
+            />
+            Compresión sin pérdida (logos e ilustraciones)
+          </label>
+        )}
+        {lossless ? (
+          <p className="note note--info">
+            <Icon name="info" />
+            <span>
+              Compresión sin pérdida: el archivo no pierde detalle al guardarse. Si la medida es menor que
+              la original, la imagen se reduce igualmente.
+            </span>
+          </p>
+        ) : (
+          <QualitySlider value={recipe.quality} onCommit={(quality) => update({ quality })} />
+        )}
+      </section>
+
+      <details className="more">
+        <summary>
+          <span className="more__title">Más opciones</span>
+          <span className="more__hint">Nombre de la versión y guardar como ajuste</span>
+        </summary>
+        <div className="more__body side-stack">
           <label className="field">
-            <span className="field__label">Nombre</span>
+            <span className="field__label">Nombre de la versión</span>
             <input
               className="input"
               value={recipe.name}
               onChange={(event) => update({ name: event.target.value })}
-              onBlur={(event) => !event.target.value.trim() && update({ name: 'Salida' })}
+              onBlur={(event) => !event.target.value.trim() && update({ name: 'Versión' })}
             />
           </label>
           <label className="field">
@@ -190,246 +351,38 @@ export function RecipeForm({ recipe, image }: { recipe: Recipe; image: SourceIma
               className="input"
               value={recipe.suffix}
               onChange={(event) => update({ suffix: event.target.value })}
-              onBlur={(event) => !event.target.value.trim() && update({ suffix: 'salida' })}
+              onBlur={(event) => !event.target.value.trim() && update({ suffix: 'version' })}
               spellCheck={false}
             />
           </label>
-          <div className="field">
-            <span className="field__label">Medidas</span>
-            <div className="dims">
-              <NumberField
-                label="Ancho"
-                value={recipe.width}
-                allowEmpty={recipe.mode === 'fit'}
-                onCommit={(width) => update({ width })}
-              />
-              <span className="dims__x" aria-hidden="true">
-                ×
-              </span>
-              <NumberField
-                label="Alto"
-                value={recipe.height}
-                allowEmpty={recipe.mode === 'fit'}
-                onCommit={(height) => update({ height })}
-              />
-            </div>
-            <span className="field__hint">
-              {recipe.mode === 'fit'
-                ? 'Deja una medida vacía y se calcula sola. Nunca se amplía la original.'
-                : 'Ancho y alto exactos de la copia.'}
-            </span>
-          </div>
-          <div className="field">
-            <span className="field__label">Encaje</span>
-            <div className="seg seg--block" role="group" aria-label="Encaje">
-              <button type="button" aria-pressed={recipe.mode === 'fit'} onClick={() => setMode('fit')}>
-                Mantener proporción
-              </button>
-              <button type="button" aria-pressed={recipe.mode === 'crop'} onClick={() => setMode('crop')}>
-                Recortar
-              </button>
-              <button type="button" aria-pressed={recipe.mode === 'pad'} onClick={() => setMode('pad')}>
-                Márgenes
-              </button>
-            </div>
-            <span className="field__hint">
-              {recipe.mode === 'fit' && 'La imagen completa, sin recortes ni bordes.'}
-              {recipe.mode === 'crop' && 'Rellena la medida recortando. Mueve el encuadre en la vista.'}
-              {recipe.mode === 'pad' && 'La imagen completa sobre un lienzo, con aire alrededor.'}
-            </span>
-          </div>
-          {mode === 'crop' && (
-            <button type="button" className="btn btn--ghost btn--small" onClick={() => resetCrop(image.id, recipe.id)}>
-              <Icon name="reset" />
-              Volver a centrar el encuadre
-            </button>
-          )}
-          {mode === 'pad' && (
-            <div className="field">
-              <div className="quality-row">
-                <label className="field__label" htmlFor="margin">
-                  Margen
-                </label>
-                <output htmlFor="margin" className="tabular">
-                  {recipe.margin} %
-                </output>
-              </div>
-              <input
-                id="margin"
-                className="range"
-                type="range"
-                min={0}
-                max={40}
-                value={recipe.margin}
-                onChange={(event) => update({ margin: Number(event.target.value) })}
-              />
-            </div>
-          )}
-          <div className="field">
-            <span className="field__label">Formato</span>
-            <div className="seg seg--block" role="group" aria-label="Formato">
-              {formats.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={recipe.format === option.value}
-                  onClick={() => update({ format: option.value })}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <span className="field__hint">
-              {format === 'jpeg' && 'JPG: ideal para fotos. No admite transparencia.'}
-              {format === 'png' && 'PNG: sin pérdida, conserva la transparencia. Ideal para logos.'}
-              {format === 'webp' && 'WebP: el más ligero para web. Conserva la transparencia.'}
-            </span>
-          </div>
-          {format === 'webp' && (
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={lossless}
-                disabled={recipe.format === 'original' && info.webpLossless === true}
-                onChange={(event) => update({ lossless: event.target.checked })}
-              />
-              Sin pérdida (ideal para logos e ilustraciones)
+          <form
+            className="field"
+            onSubmit={(event) => {
+              event.preventDefault();
+              saveRecipeAsPreset(recipe.id, presetName);
+            }}
+          >
+            <label className="field__label" htmlFor="preset-name">
+              Guardar como ajuste en este equipo
             </label>
-          )}
-          {lossless ? (
-            <p className="note note--info">
-              <Icon name="info" />
-              <span>Sin pérdida: los píxeles se guardan exactos y solo se optimiza el peso.</span>
-            </p>
-          ) : (
-            <QualitySlider value={recipe.quality} onCommit={(quality) => update({ quality })} />
-          )}
-          {showBackground && (
-            <div className="field">
-              <span className="field__label">
-                {mode === 'pad' ? 'Fondo del lienzo' : 'Relleno de las zonas transparentes'}
-              </span>
-              <div className="swatch-row" role="group" aria-label="Color de fondo">
-                {supportsAlpha(format) && (
-                  <button
-                    type="button"
-                    className="swatch swatch--transparent"
-                    aria-pressed={background === 'transparent'}
-                    onClick={() => update({ background: 'transparent' })}
-                    aria-label="Transparente"
-                    title="Transparente"
-                  />
-                )}
-                {BACKGROUNDS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    className="swatch"
-                    style={{ background: option.value }}
-                    aria-pressed={background === option.value}
-                    onClick={() => update({ background: option.value })}
-                    aria-label={option.label}
-                    title={option.label}
-                  />
-                ))}
-                <label
-                  className="swatch swatch--custom"
-                  data-selected={background !== 'transparent' && !BACKGROUNDS.some((b) => b.value === background)}
-                  title="Otro color"
-                >
-                  <input
-                    type="color"
-                    value={background === 'transparent' ? '#ffffff' : background}
-                    onChange={(event) => update({ background: event.target.value })}
-                    aria-label="Otro color"
-                  />
-                </label>
-              </div>
+            <div className="save-preset">
+              <input
+                id="preset-name"
+                className="input"
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+                aria-label="Nombre del ajuste"
+              />
+              <button type="submit" className="btn btn--secondary">
+                <Icon name="save" />
+                Guardar
+              </button>
             </div>
-          )}
+            <span className="field__hint">Aparecerá en «Añadir versión», también otro día.</span>
+          </form>
+          <Notice area="version" />
         </div>
-      </section>
-
-      <section className="side-section">
-        <h3 className="side-section__title display">Antes y después</h3>
-        <table className="compare-table tabular">
-          <thead>
-            <tr>
-              <th scope="col" />
-              <th scope="col">Original</th>
-              <th scope="col">Copia</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">Formato</th>
-              <td>{FORMAT_LABEL[info.format]}</td>
-              <td>{FORMAT_LABEL[format]}</td>
-            </tr>
-            <tr>
-              <th scope="row">Medidas</th>
-              <td>{formatDimensions(info.width, info.height)}</td>
-              <td>{formatDimensions(layout.cw, layout.ch)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Calidad</th>
-              <td>{describeSourceQuality(info)}</td>
-              <td>{describeOutputQuality(format, recipe.quality, lossless)}</td>
-            </tr>
-            <tr>
-              <th scope="row">Transparencia</th>
-              <td>{info.hasAlpha ? 'Sí' : 'No'}</td>
-              <td>{keepsAlpha ? 'Sí' : 'No'}</td>
-            </tr>
-            <tr>
-              <th scope="row">Peso</th>
-              <td>{formatBytes(image.size)}</td>
-              <td>
-                {done && result?.size !== undefined ? (
-                  <>
-                    <strong>{formatBytes(result.size)}</strong>{' '}
-                    <span className={`delta${result.size > image.size ? ' delta--up' : ''}`}>
-                      {formatDelta(image.size, result.size)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="muted">calculando…</span>
-                )}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      {result && result.warnings.length > 0 && (
-        <section className="side-section">
-          <h3 className="side-section__title display">A tener en cuenta</h3>
-          <Notes warnings={result.warnings} />
-        </section>
-      )}
-
-      <section className="side-section">
-        <h3 className="side-section__title display">Guardar como ajuste</h3>
-        <p className="side-section__hint">Para tenerlo a mano la próxima vez, en este equipo.</p>
-        <form
-          className="save-preset"
-          onSubmit={(event) => {
-            event.preventDefault();
-            saveRecipeAsPreset(recipe.id, presetName);
-          }}
-        >
-          <input
-            className="input"
-            value={presetName}
-            onChange={(event) => setPresetName(event.target.value)}
-            aria-label="Nombre del ajuste"
-          />
-          <button type="submit" className="btn btn--secondary">
-            <Icon name="save" />
-            Guardar
-          </button>
-        </form>
-      </section>
-    </>
+      </details>
+    </div>
   );
 }

@@ -17,7 +17,10 @@ describe('nombres', () => {
   });
 
   it('aplica el patrón con todas las variables', () => {
+    expect(renderPattern('{nombre}-{version}', tokens, true)).toBe('ritual-matcha-n-ig-4x5');
+    // Patrones guardados con la etiqueta anterior o con tilde siguen funcionando.
     expect(renderPattern('{nombre}-{salida}', tokens, true)).toBe('ritual-matcha-n-ig-4x5');
+    expect(renderPattern('{versión}_{n}', tokens, true)).toBe('ig-4x5-03');
     expect(renderPattern('{n}_{nombre}_{ancho}x{alto}', tokens, true)).toBe('03-ritual-matcha-n-1080x1350');
   });
 

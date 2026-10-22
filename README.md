@@ -7,24 +7,48 @@ navegador**: no hay servidor, ni cuentas, ni base de datos, ni APIs de pago.
 Es independiente de Brisa Platform. Dirección prevista: `tools.brisadesignstudio.com`
 (todavía sin publicar; ver «Publicación» más abajo).
 
-## Qué hace
+## Recorrido
 
-- **Carga varias imágenes** JPG, PNG y WebP (arrastrando o con el selector). El formato se
-  comprueba por el contenido del archivo, no por la extensión.
-- **Varias salidas por imagen.** Cada salida (por ejemplo, «Contenido web» o «Instagram
-  vertical 4:5») crea una copia de todas las imágenes. Hay ajustes de fábrica para web y
-  redes, y puedes guardar los tuyos.
-- **Tres formas de encajar**:
-  - *Mantener proporción* (por defecto): la imagen completa, sin recortes ni bordes.
-  - *Recortar*: medida exacta con encuadre manual por imagen (arrastrar, esquinas o teclado).
-  - *Márgenes*: la imagen completa sobre un lienzo, con aire alrededor y fondo transparente
-    o de color.
-- **Compresión con control**: calidad ajustable, peso y calidad de la original y de la copia,
-  y una vista «Antes / después» al 100 % o 200 % para revisar la compresión.
-- **Nombres y ZIP**: patrón de nombre (`{nombre}`, `{salida}`, `{ancho}`, `{alto}`, `{n}`),
-  nombres aptos para web, carpetas por salida o por imagen y, si quieres, las originales
-  intactas en `originales/`.
-- **Ajustes guardados en el dispositivo** (localStorage): salidas activas, ajustes propios,
+La mesa de trabajo sigue cuatro pasos numerados, sin asistente: se puede volver a
+cualquiera en todo momento.
+
+1. **Imágenes originales.** Carga varias JPG, PNG y WebP (arrastrando o con «Añadir
+   imágenes»). El formato se comprueba por el contenido del archivo, no por la extensión.
+   La imagen en revisión se marca con borde y barra lateral.
+2. **Versiones para exportar.** Cada versión (por ejemplo, «Contenido web» o «Instagram
+   vertical 4:5») crea una copia de todas las imágenes; cada ficha muestra su medida y su
+   formato. Hay ajustes de fábrica para web y redes, puedes guardar los tuyos y, si quitas
+   una versión por error, «Deshacer» la recupera con sus encuadres.
+3. **Revisión.** Una tarjeta por versión con la copia real, medidas, formato, calidad, peso
+   antes y después, avisos y el nombre del archivo. «Ajustar» abre el editor.
+4. **Descarga.** Una barra compacta con el recuento (archivos, imágenes × versiones,
+   exclusiones y originales), el peso total, el progreso y «Descargar ZIP». Patrón de
+   nombres, carpetas, nombres aptos para web y originales intactas están en «Más opciones».
+
+## Editor
+
+- **A la izquierda, esta imagen**: encuadre, resultado y «Antes y después» (zoom de
+  inspección al 100 % o 200 %, con la medida real del archivo a la vista). Debajo, el
+  resumen *original → resultado* separa lo que pasa con las medidas (recortada, reducida,
+  con márgenes) de cómo se comprime (con o sin pérdida, calidad) y del peso.
+- **A la derecha, la versión**: medidas y encaje, fondo exportado, formato y compresión.
+  Una etiqueta fija recuerda que afecta a todas las imágenes; el encuadre lleva la suya,
+  «Solo esta imagen», con «Restablecer encuadre» siempre visible.
+- **Fondo de vista** (cuadros, claro u oscuro) solo sirve para revisar; el **fondo
+  exportado** se elige aparte, en los ajustes de la versión.
+- **Tres formas de encajar**: *Mantener proporción* (por defecto, la imagen completa),
+  *Recortar* (medida exacta, encuadre por imagen con ratón, esquinas o teclado: flechas,
+  `+` y `−`) y *Márgenes* (la imagen completa sobre un lienzo, con fondo transparente o de
+  color).
+- **Los cambios se guardan solos**: «Listo», `Esc` o cerrar no descartan nada.
+- Nombre de la versión y «Guardar como ajuste» están en «Más opciones».
+
+## Nombres, ZIP y ajustes
+
+- Patrón de nombre con `{nombre}`, `{version}`, `{ancho}`, `{alto}` y `{n}` (los patrones
+  guardados con `{salida}` siguen funcionando), nombres aptos para web, carpetas por versión
+  o por imagen y, si quieres, las originales intactas en `originales/`.
+- Ajustes guardados en el dispositivo (localStorage): versiones activas, ajustes propios,
   patrón de nombres y preferencias. Nunca se guardan imágenes.
 
 ## Fidelidad: lo que la herramienta nunca hace
@@ -43,6 +67,14 @@ Es independiente de Brisa Platform. Dirección prevista: `tools.brisadesignstudi
   redimensionado (Lanczos3) trabaja con alfa premultiplicado para que no aparezcan halos
   oscuros en los bordes. JPG no admite transparencia: se rellena con el color de fondo
   elegido y la herramienta lo avisa.
+- **No sustituye conversiones en silencio.** Si pides otro formato o medida, la copia es
+  siempre ese formato y esa medida. Solo cuando no cambia nada (mismo formato y mismas
+  medidas) y recomprimir no ahorra peso, se entrega la original intacta, y la tarjeta lo dice.
+- **Explica las excepciones** junto a la copia, con qué hacer: original menor que la medida
+  pedida, JPG sin transparencia, copia que pesa más que la original, imagen animada, perfil
+  de color amplio, imagen que no se pudo leer (no entra en el ZIP y se dice en la descarga).
+- **«Sin pérdida» habla solo de la compresión.** Si la medida es menor, la imagen se reduce
+  igualmente; la interfaz lo distingue siempre.
 
 ## Privacidad
 
@@ -51,6 +83,18 @@ política de seguridad de contenido (CSP) que solo permite cargar recursos del p
 **no permite conexiones a otros servidores** (`connect-src 'self'`). Los códecs (MozJPEG,
 libwebp, OxiPNG, Lanczos) y las tipografías se sirven desde el mismo sitio. Las pruebas
 automáticas comprueban que no sale ninguna petición fuera.
+
+## Accesibilidad y adaptación
+
+- Todo se usa con teclado: foco visible (vino, o rosa sobre la barra oscura) que nunca queda
+  bajo una barra, ventanas que retienen el foco y lo devuelven al cerrarse, y el foco no se
+  pierde al quitar una imagen o una versión.
+- Estados que no dependen solo del color (borde y barra en la imagen elegida, anillo en el
+  fondo de vista elegido, etiqueta «No se descargará» en las copias excluidas).
+- Contraste AA, también en el texto de la portada sobre el degradado.
+- Escritorio, ventana pequeña, móvil y zoom al 200 %: en pantallas estrechas, una sola
+  columna y un solo desplazamiento; controles de 40–44 px con dedo.
+- Avisos junto a lo que cuentan, anunciados a lectores de pantalla.
 
 ## Formatos
 
@@ -73,8 +117,8 @@ La calidad de un JPG original se estima a partir de sus tablas de cuantización 
   pero conviene saberlo. La orientación sí se aplica a los píxeles.
 - Imágenes enormes (más de ~100 megapíxeles) pueden superar la memoria del navegador,
   sobre todo en el móvil.
-- Probada de forma automática en Chromium. Safari (16.4 o posterior) y Firefox deberían
-  funcionar porque usan las mismas APIs estándar, pero no se han probado aún.
+- Probada de forma automática solo en Chromium. **Safari y Firefox están pendientes de
+  probar**: usan las mismas APIs estándar, pero no se dan por compatibles sin comprobarlo.
 - Los ajustes viven en el navegador donde se crean: no se sincronizan entre equipos, y
   borrar los datos del sitio los elimina.
 
@@ -110,6 +154,10 @@ npm test             # pruebas unitarias (Vitest)
 npm run fixtures     # genera imágenes de prueba en tests/fixtures/generated/
 npm run test:e2e     # pruebas de extremo a extremo en Chromium (Playwright)
 ```
+
+Las pruebas de extremo a extremo usan la versión de producción en `localhost:4173`. Si ya
+hay un `vite preview` abierto en ese puerto, Playwright lo reutiliza: reinícialo después de
+cada `npm run build`.
 
 Estructura:
 

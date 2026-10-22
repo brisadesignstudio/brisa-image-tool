@@ -42,20 +42,35 @@ export function supportsAlpha(format: SourceFormat): boolean {
   return format !== 'jpeg';
 }
 
-/** Calidad de la original, en palabras. */
+const COLOR_NAMES: Record<string, string> = {
+  transparent: 'transparente',
+  '#ffffff': 'blanco',
+  '#000000': 'negro',
+  '#f6f0e8': 'crema',
+  '#f2cedd': 'rosa',
+  '#631028': 'vino',
+};
+
+/** «blanco», «vino»… o el código del color si no tiene nombre. */
+export function colorName(color: string): string {
+  return COLOR_NAMES[color.toLowerCase()] ?? color.toUpperCase();
+}
+
+/** Compresión de la original, en palabras. */
 export function describeSourceQuality(info: SourceInfo): string {
-  if (info.format === 'png') return 'sin pérdida';
+  if (info.format === 'png') return 'compresión sin pérdida';
   if (info.format === 'webp') {
-    if (info.webpLossless === true) return 'sin pérdida';
-    return 'con compresión';
+    return info.webpLossless === true ? 'compresión sin pérdida' : 'compresión con pérdida';
   }
   if (info.jpegQuality === null) return 'calidad desconocida';
   return info.jpegQualityExact ? `calidad ${info.jpegQuality}` : `calidad ≈ ${info.jpegQuality}`;
 }
 
-/** Calidad de la copia, en palabras. */
+/**
+ * Compresión de la copia, en palabras. «Sin pérdida» habla solo de cómo se guarda
+ * el archivo: si la copia es más pequeña, la imagen se reduce igualmente.
+ */
 export function describeOutputQuality(format: SourceFormat, quality: number, lossless: boolean): string {
-  if (format === 'png') return 'sin pérdida';
-  if (format === 'webp' && lossless) return 'sin pérdida';
+  if (format === 'png' || (format === 'webp' && lossless)) return 'compresión sin pérdida';
   return `calidad ${quality}`;
 }

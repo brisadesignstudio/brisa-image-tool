@@ -25,10 +25,16 @@ export interface EditorTarget {
   recipeId: string;
 }
 
-export interface Toast {
+/** Zona de la interfaz donde se muestra el aviso (junto a lo que se refiere). */
+export type NoticeArea = 'imagenes' | 'versiones' | 'descarga' | 'version';
+
+export interface Notice {
   id: number;
+  area: NoticeArea;
   kind: 'info' | 'ok' | 'error';
   text: string;
+  /** Acción opcional junto al aviso, p. ej. «Deshacer», y dónde dejar el foco después. */
+  action?: { label: string; run: () => void; focusAfter?: string };
 }
 
 export interface ExportProgress {
@@ -40,20 +46,20 @@ export interface ExportProgress {
 export interface AppState {
   images: SourceImage[];
   selectedId: string | null;
-  /** Salidas activas: se aplican a todas las imágenes. */
+  /** Versiones para exportar: se aplican a todas las imágenes. */
   recipes: Recipe[];
   /** Ajustes guardados por la usuaria. */
   customPresets: Preset[];
-  /** Encuadre manual por imagen y salida. */
+  /** Encuadre manual por imagen y versión. */
   crops: Record<string, CropRect>;
-  /** Copias que no van al ZIP. */
+  /** Copias que no se incluyen en la descarga. */
   excluded: Record<string, true>;
   results: Record<string, RenderResult>;
   naming: NamingSettings;
   previewBg: PreviewBackground;
   editor: EditorTarget | null;
   exporting: ExportProgress | null;
-  toast: Toast | null;
+  notice: Notice | null;
 }
 
 function loadRecipes(): Recipe[] {
@@ -91,7 +97,8 @@ function loadNaming(): NamingSettings {
     const r = raw as Partial<Record<keyof NamingSettings, unknown>>;
     const folders: FolderMode[] = ['salida', 'imagen', 'ninguna'];
     return {
-      pattern: typeof r.pattern === 'string' ? r.pattern.slice(0, 120) : defaults.pattern,
+      pattern:
+        typeof r.pattern === 'string' ? r.pattern.slice(0, 120).replaceAll('{salida}', '{version}') : defaults.pattern,
       normalize: typeof r.normalize === 'boolean' ? r.normalize : defaults.normalize,
       folders: folders.includes(r.folders as FolderMode) ? (r.folders as FolderMode) : defaults.folders,
       includeOriginals:
@@ -119,7 +126,7 @@ export const useStore = create<AppState>(() => ({
   previewBg: loadPreviewBg(),
   editor: null,
   exporting: null,
-  toast: null,
+  notice: null,
 }));
 
 // Los ajustes (nunca las imágenes) se guardan en este dispositivo.
@@ -130,7 +137,7 @@ useStore.subscribe((state, prev) => {
   if (state.previewBg !== prev.previewBg) saveSetting('fondo-vista', state.previewBg);
 });
 
-let toastId = 0;
-export function showToast(kind: Toast['kind'], text: string) {
-  useStore.setState({ toast: { id: ++toastId, kind, text } });
+let noticeId = 0;
+export function showNotice(area: NoticeArea, kind: Notice['kind'], text: string, action?: Notice['action']) {
+  useStore.setState({ notice: { id: ++noticeId, area, kind, text, action } });
 }

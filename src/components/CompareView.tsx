@@ -3,7 +3,7 @@ import { itemKey, useStore } from '../state/store';
 import { renderForCompare } from '../engine/renderer';
 import { CancelledError } from '../engine/pool';
 import { buildSpec } from '../engine/spec';
-import { formatBytes } from '../lib/format';
+import { formatBytes, formatDimensions } from '../lib/format';
 import type { Recipe, SourceImage } from '../lib/types';
 
 type Zoom = 'fit' | 1 | 2;
@@ -15,8 +15,8 @@ interface Comparison {
 }
 
 /**
- * Antes / después a tamaño real: a la izquierda los píxeles sin comprimir,
- * a la derecha la copia tal y como se descargará.
+ * Antes y después de comprimir, con las medidas finales: a la izquierda los píxeles
+ * sin comprimir, a la derecha la copia tal y como se descargará.
  */
 export function CompareView({ image, recipe }: { image: SourceImage; recipe: Recipe }) {
   const crop = useStore((s) => s.crops[itemKey(image.id, recipe.id)]);
@@ -106,17 +106,28 @@ export function CompareView({ image, recipe }: { image: SourceImage; recipe: Rec
   return (
     <div className="compare-wrap">
       <div className="compare-toolbar">
-        <div className="seg" role="group" aria-label="Zoom">
-          <button type="button" aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}>
-            Ajustar
-          </button>
-          <button type="button" aria-pressed={zoom === 1} onClick={() => setZoom(1)}>
-            100 %
-          </button>
-          <button type="button" aria-pressed={zoom === 2} onClick={() => setZoom(2)}>
-            200 %
-          </button>
+        <div className="labelled" role="group" aria-labelledby="zoom-label">
+          <span id="zoom-label" className="labelled__label">
+            Zoom de inspección
+          </span>
+          <div className="seg">
+            <button type="button" aria-pressed={zoom === 'fit'} onClick={() => setZoom('fit')}>
+              Ajustar
+            </button>
+            <button type="button" aria-pressed={zoom === 1} onClick={() => setZoom(1)}>
+              100 %
+            </button>
+            <button type="button" aria-pressed={zoom === 2} onClick={() => setZoom(2)}>
+              200 %
+            </button>
+          </div>
         </div>
+        {data && (
+          <p className="compare-toolbar__scale tabular">
+            Vista al {Math.round(scale * 100)} % · el archivo mide{' '}
+            {formatDimensions(data.raw.width, data.raw.height)} px
+          </p>
+        )}
         <label className="split-control">
           <span>Antes</span>
           <input
@@ -131,6 +142,12 @@ export function CompareView({ image, recipe }: { image: SourceImage; recipe: Rec
           <span>Después</span>
         </label>
       </div>
+      {data && (
+        <div className="compare__labels">
+          <span>Antes de comprimir</span>
+          <span className="tabular">Después · archivo final, {formatBytes(data.size)}</span>
+        </div>
+      )}
       <div className="compare-area">
         <div className="compare" ref={viewport} data-pixelated={zoom === 2}>
           {data && (
@@ -157,12 +174,6 @@ export function CompareView({ image, recipe }: { image: SourceImage; recipe: Rec
             </div>
           )}
         </div>
-        {data && (
-          <div className="compare__labels">
-            <span>Antes · sin comprimir</span>
-            <span className="tabular">Después · {formatBytes(data.size)}</span>
-          </div>
-        )}
         {(loading || error) && (
           <span className={`status compare__status${error ? ' status--error' : ''}`}>
             {error ?? (
