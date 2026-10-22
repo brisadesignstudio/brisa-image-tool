@@ -4,8 +4,8 @@ Herramienta web para preparar imágenes para web y redes: varias medidas por ima
 recortes con intención, el peso justo y un ZIP ordenado. **Todo se procesa en el
 navegador**: no hay servidor, ni cuentas, ni base de datos, ni APIs de pago.
 
-Es independiente de Brisa Platform. Dirección prevista: `tools.brisadesignstudio.com`
-(todavía sin publicar; ver «Publicación» más abajo).
+Es independiente de Brisa Platform. Dirección: **https://tools.brisadesignstudio.com** (ver
+«Publicación» más abajo para actualizarla o volver a una versión anterior).
 
 Estado, historial y pendientes: [`ESTADO.md`](ESTADO.md) · Instalar y desarrollar en tu Mac:
 [«Desarrollo en tu Mac»](#desarrollo-en-tu-mac).
@@ -228,7 +228,7 @@ open -a "Google Chrome" dist-archivo/brisa-preparador-de-imagenes.html
 Un solo archivo con todo dentro (códecs, tipografías, procesado). Funciona con doble clic,
 sin servidor y sin internet. Ábrelo con Chrome: Safari no está probado desde el disco.
 
-### Sitio estático (sin publicar)
+### Sitio estático en tu equipo
 
 ```bash
 npm run build      # genera dist/
@@ -286,18 +286,61 @@ scripts/        imágenes de prueba sintéticas
 tests/          pruebas unitarias, de extremo a extremo e imágenes de prueba
 ```
 
-## Publicación (pendiente, no realizada)
+## Publicación
 
-`npm run build` genera `dist/`, un sitio estático que se puede alojar en cualquier servicio
-(Cloudflare Pages, Netlify, Vercel o GitHub Pages) y funciona también en una subcarpeta.
-Cuando decidas publicarlo en `tools.brisadesignstudio.com`:
+La web está en **https://tools.brisadesignstudio.com**, alojada en GitHub Pages: gratis para
+repositorios públicos, sin cuentas ni servicios nuevos. Se publica solo el sitio compilado
+(`dist/`); el procesado sigue ocurriendo en el navegador de cada persona.
 
-1. Crear el proyecto en el servicio elegido, con `npm run build` y la carpeta `dist`.
-2. Añadir el dominio personalizado en ese servicio.
-3. En el DNS de `brisadesignstudio.com`, crear el registro `CNAME` de `tools` que indique el
-   servicio. **No se ha modificado ningún DNS.**
-4. Recomendado: enviar la misma política de seguridad como cabecera HTTP y añadir
-   `frame-ancestors 'none'`.
+- **Rama `gh-pages`**: solo contiene lo publicado. Cada publicación es un commit
+  «Publicar ‹commit›: ‹asunto›». No se edita a mano.
+- **GitHub** (Settings → Pages): «Deploy from a branch», rama `gh-pages`, carpeta `/ (root)`;
+  dominio `tools.brisadesignstudio.com` (lo fija el archivo `CNAME` que añade el script) y
+  «Enforce HTTPS», que se puede marcar cuando GitHub ha emitido el certificado del dominio
+  (estado actual en [`ESTADO.md`](ESTADO.md)).
+- **DNS** (Namecheap → Advanced DNS): un solo registro `CNAME` · host `tools` · valor
+  `brisadesignstudio.github.io.` · TTL Automatic. El resto del dominio no se ha tocado.
+
+### Actualizar la web desde el Mac
+
+```bash
+git pull                          # trae lo último
+npm ci                            # si cambiaron las dependencias
+npm run typecheck && npm test     # comprobaciones rápidas
+npm run test:e2e                  # recomendado si cambió la interfaz o el procesado
+git push                          # lo que se publica tiene que estar en GitHub
+npm run publicar                  # compila ese commit y lo sube a gh-pages
+```
+
+`npm run publicar` compila el commit en una carpeta temporal (lo que no esté guardado en un
+commit no se publica) y vuelve a pasar los tipos y las pruebas unitarias antes de subir nada.
+La web cambia en uno o dos minutos; si ves la versión anterior, recarga con ⌘⇧R (GitHub Pages
+deja que el navegador la guarde hasta 10 minutos).
+
+### Volver a una versión anterior
+
+```bash
+git fetch origin
+git log --oneline origin/gh-pages   # publicaciones: «Publicar ‹commit›: …»
+npm run publicar -- 85bddb4         # vuelve a publicar ese commit
+```
+
+No borra nada: volver atrás es una publicación nueva, y se deshace del mismo modo.
+
+### Comprobar la web publicada
+
+En GitHub: pestaña **Actions** → «Comprobar la web publicada» → **Run workflow**. Revisa el DNS,
+el certificado HTTPS y el tipo de los códecs, y pasa las pruebas de extremo a extremo contra la
+web real (no contra una copia local). Desde el Mac, solo las pruebas:
+`WEB_URL=https://tools.brisadesignstudio.com/ npm run test:e2e`.
+
+### Condiciones del alojamiento
+
+GitHub Pages admite sitios de hasta 1 GB (este ocupa ~2,2 MB) y un ancho de banda orientativo
+de 100 GB al mes. No deja enviar cabeceras HTTP propias: la política de seguridad va dentro de
+la página y `frame-ancestors` no se puede aplicar (sin cuentas ni datos que proteger, el riesgo
+es bajo). No se puede usar como tienda ni para vender software como servicio (SaaS): si algún
+día la herramienta se vende, habrá que moverla a otro alojamiento.
 
 ## Licencias de terceros
 

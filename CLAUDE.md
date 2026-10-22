@@ -22,6 +22,8 @@ Estado, historial y pendientes: `ESTADO.md`. Documentación de uso y desarrollo:
 - **Repositorio público**: nunca subir imágenes de clientes, documentos privados ni claves. Las
   imágenes de prueba son sintéticas (`scripts/make-*.py`).
 - **No tocar Brisa Platform.** No publicar, desplegar ni cambiar DNS sin una petición explícita.
+- **Publicada** en https://tools.brisadesignstudio.com (GitHub Pages, rama `gh-pages`, solo el
+  sitio compilado). Detalles, actualizar y volver atrás: «Publicación» del README.
 - Accesibilidad: todo usable con teclado, foco visible y nunca tapado, estados que no dependen
   solo del color, nada que dependa de pasar el cursor; probar ventana pequeña, móvil y zoom 200 %.
 
@@ -35,6 +37,8 @@ npm test               # pruebas unitarias (Vitest)
 npm run build          # sitio estático en dist/ (con CSP)
 npm run preview        # sirve dist/ en http://localhost:4173
 npm run build:archivo  # HTML autónomo en dist-archivo/brisa-preparador-de-imagenes.html
+npm run publicar       # publica el commit actual (ya subido) en tools.brisadesignstudio.com;
+                       # `npm run publicar -- <commit>` vuelve a una versión anterior. Solo si se pide.
 npm run fixtures       # imágenes de prueba (Python 3 + Pillow, y el Chromium de Playwright para
                        # rasterizar el logotipo) → tests/fixtures/generated/
 npm run test:e2e       # Playwright (Chromium) contra la versión de producción en :4173
