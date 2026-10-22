@@ -16,10 +16,23 @@ export function loadSetting<T>(key: string, fallback: T, validate: (raw: unknown
   }
 }
 
-export function saveSetting(key: string, value: unknown): void {
+/** Guarda un ajuste; devuelve false si el navegador no lo permite (modo privado, cuota llena…). */
+export function saveSetting(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
+    return true;
   } catch {
-    // Sin almacenamiento disponible (modo privado, cuota llena…): no pasa nada.
+    return false;
+  }
+}
+
+/** ¿Se puede guardar en este navegador? Se comprueba escribiendo y borrando una marca. */
+export function storageAvailable(): boolean {
+  try {
+    localStorage.setItem(`${PREFIX}prueba`, '1');
+    localStorage.removeItem(`${PREFIX}prueba`);
+    return true;
+  } catch {
+    return false;
   }
 }

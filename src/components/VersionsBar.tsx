@@ -5,6 +5,7 @@ import { describeSize } from '../lib/geometry';
 import { FORMAT_LABEL, formatBytes } from '../lib/format';
 import { Icon } from './Icon';
 import { Notice } from './Notice';
+import { PackagesDialog } from './PackagesDialog';
 import { PresetPicker } from './PresetPicker';
 import { SectionTitle } from './SectionTitle';
 
@@ -13,6 +14,7 @@ export function VersionsBar() {
   const selectedId = useStore((s) => s.selectedId);
   const imageCount = useStore((s) => s.images.filter((i) => i.status !== 'error').length);
   const [picking, setPicking] = useState(false);
+  const [packing, setPacking] = useState(false);
   const section = useRef<HTMLElement>(null);
 
   // Al quitar una versión, el foco pasa a la vecina (o a «Añadir versión») y no se pierde.
@@ -39,14 +41,24 @@ export function VersionsBar() {
             y se guarda en este equipo.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn--secondary btn--small versions__add"
-          onClick={() => setPicking(true)}
-        >
-          <Icon name="plus" />
-          Añadir versión
-        </button>
+        <div className="versions__tools">
+          <button
+            type="button"
+            className="btn btn--secondary btn--small versions__packages"
+            onClick={() => setPacking(true)}
+          >
+            <Icon name="box" />
+            Paquetes
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--small versions__add"
+            onClick={() => setPicking(true)}
+          >
+            <Icon name="plus" />
+            Añadir versión
+          </button>
+        </div>
       </div>
       <ul className="chips" aria-label="Versiones">
         {recipes.map((recipe, index) => (
@@ -79,6 +91,7 @@ export function VersionsBar() {
       </ul>
       <Notice area="versiones" />
       {picking && <PresetPicker onClose={() => setPicking(false)} />}
+      {packing && <PackagesDialog onClose={() => setPacking(false)} />}
     </section>
   );
 }

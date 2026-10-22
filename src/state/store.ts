@@ -3,18 +3,19 @@ import {
   BUILT_IN_PRESETS,
   DEFAULT_RECIPE_PRESETS,
   recipeFromPreset,
+  sanitizePackage,
   sanitizeSettings,
 } from '../lib/presets';
-import { defaultNaming } from '../lib/naming';
-import { loadSetting, saveSetting } from '../lib/storage';
+import { defaultNaming, sanitizeNaming } from '../lib/naming';
+import { loadSetting, saveSetting, storageAvailable } from '../lib/storage';
 import type {
   CropRect,
-  FolderMode,
   NamingSettings,
   Preset,
   PreviewBackground,
   Recipe,
   RenderResult,
+  SettingsPackage,
   SourceImage,
 } from '../lib/types';
 
@@ -26,7 +27,7 @@ export interface EditorTarget {
 }
 
 /** Zona de la interfaz donde se muestra el aviso (junto a lo que se refiere). */
-export type NoticeArea = 'imagenes' | 'versiones' | 'revision' | 'descarga' | 'version';
+export type NoticeArea = 'imagenes' | 'versiones' | 'revision' | 'descarga' | 'version' | 'paquetes';
 
 export interface Notice {
   id: number;
@@ -50,6 +51,10 @@ export interface AppState {
   recipes: Recipe[];
   /** Ajustes guardados por la usuaria. */
   customPresets: Preset[];
+  /** Paquetes de ajustes guardados (varias versiones y sus nombres de archivo). */
+  packages: SettingsPackage[];
+  /** false si el navegador no permite guardar: lo de esta sesión no se conservará al cerrar. */
+  storageReady: boolean;
   /** Encuadre manual por imagen y versión. */
   crops: Record<string, CropRect>;
   /**
@@ -93,22 +98,19 @@ function loadPresets(): Preset[] {
   });
 }
 
-function loadNaming(): NamingSettings {
-  const defaults = defaultNaming();
-  return loadSetting<NamingSettings>('nombres', defaults, (raw) => {
-    if (!raw || typeof raw !== 'object') return null;
-    const r = raw as Partial<Record<keyof NamingSettings, unknown>>;
-    const folders: FolderMode[] = ['salida', 'imagen', 'ninguna'];
-    return {
-      pattern:
-        typeof r.pattern === 'string' ? r.pattern.slice(0, 120).replaceAll('{salida}', '{version}') : defaults.pattern,
-      normalize: typeof r.normalize === 'boolean' ? r.normalize : defaults.normalize,
-      folders: folders.includes(r.folders as FolderMode) ? (r.folders as FolderMode) : defaults.folders,
-      includeOriginals:
-        typeof r.includeOriginals === 'boolean' ? r.includeOriginals : defaults.includeOriginals,
-      zipName: typeof r.zipName === 'string' && r.zipName.trim() ? r.zipName.slice(0, 60) : defaults.zipName,
-    };
+function loadPackages(): SettingsPackage[] {
+  return loadSetting<SettingsPackage[]>('paquetes', [], (raw) => {
+    if (!Array.isArray(raw)) return null;
+    return raw.flatMap((item) => {
+      const valid = sanitizePackage(item);
+      const id = (item as { id?: unknown })?.id;
+      return valid ? [{ ...valid.pkg, id: typeof id === 'string' ? id : valid.pkg.id }] : [];
+    });
   });
+}
+
+function loadNaming(): NamingSettings {
+  return loadSetting<NamingSettings>('nombres', defaultNaming(), sanitizeNaming);
 }
 
 function loadPreviewBg(): PreviewBackground {
@@ -122,6 +124,8 @@ export const useStore = create<AppState>(() => ({
   selectedId: null,
   recipes: loadRecipes(),
   customPresets: loadPresets(),
+  packages: loadPackages(),
+  storageReady: storageAvailable(),
   crops: {},
   excluded: {},
   results: {},
@@ -136,6 +140,10 @@ export const useStore = create<AppState>(() => ({
 useStore.subscribe((state, prev) => {
   if (state.recipes !== prev.recipes) saveSetting('salidas', state.recipes);
   if (state.customPresets !== prev.customPresets) saveSetting('ajustes', state.customPresets);
+  if (state.packages !== prev.packages && !saveSetting('paquetes', state.packages) && state.storageReady) {
+    // Falló al guardar (p. ej., cuota llena): se avisa y la sesión sigue igual.
+    useStore.setState({ storageReady: false });
+  }
   if (state.naming !== prev.naming) saveSetting('nombres', state.naming);
   if (state.previewBg !== prev.previewBg) saveSetting('fondo-vista', state.previewBg);
 });

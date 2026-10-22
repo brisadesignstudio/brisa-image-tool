@@ -57,6 +57,30 @@ cualquiera en todo momento.
 - **Los cambios se guardan solos**: «Listo», `Esc` o cerrar no descartan nada.
 - Nombre de la versión y «Guardar como ajuste» están en «Más opciones».
 
+## Paquetes de ajustes
+
+«Paquetes», en el paso 2, guarda las versiones actuales juntas —en su orden, con medidas,
+encaje, fondo exportado, formato, calidad, peso máximo y calidad mínima— y los nombres de
+archivo y carpetas, para aplicarlas a otro lote. Amplían los ajustes guardados de una
+versión (misma estructura y misma validación), no son un sistema aparte.
+
+- Nunca guardan imágenes, miniaturas, encuadres ni selecciones por imagen.
+- Aplicar pregunta si **añadir** a las versiones actuales (por defecto; no duplica las
+  idénticas) o **reemplazarlas** (las idénticas se conservan con sus encuadres). Antes de
+  reemplazar se avisa de los encuadres y selecciones que se perderían; «Cancelar» no toca
+  nada y, después de aplicar, «Deshacer» lo devuelve todo. Las versiones nuevas quedan
+  seleccionadas para las imágenes cargadas.
+- Renombrar, actualizar con las versiones actuales (con confirmación), duplicar y eliminar
+  (con confirmación; no afecta a la mesa). Los nombres repetidos nunca sobrescriben.
+- Copia de seguridad: un `.json` con formato y versión (`brisa-preparador-de-imagenes/
+  paquetes`, v1) que incluye paquetes y ajustes guardados. Al importar se valida campo a
+  campo, se muestra antes qué entrará (lo idéntico no se duplica; los nombres que chocan se
+  numeran) y se rechazan con un mensaje claro los archivos inválidos, de otra herramienta o
+  de una versión más nueva. Nada del archivo se ejecuta: solo se leen datos.
+- Se guardan en este navegador y este equipo (localStorage). Si el navegador no permite
+  guardar, se avisa: lo de la sesión sigue funcionando y la copia de seguridad permite no
+  perderlo.
+
 ## Nombres, ZIP y ajustes
 
 - Patrón de nombre con `{nombre}`, `{version}`, `{ancho}`, `{alto}` y `{n}` (los patrones

@@ -210,7 +210,8 @@ function waitForRenders(): Promise<PlannedItem[]> {
   });
 }
 
-function download(blob: Blob, fileName: string) {
+/** Inicia la descarga de un archivo generado en el navegador. */
+export function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -259,7 +260,7 @@ export async function exportZip() {
     useStore.setState({ exporting: { phase: 'zipping', done: 0, total: entries.length } });
     const zip = await getPool().run<Blob>({ type: 'zip', entries }, { priority: 100 });
     const fileName = `${zipBaseName(state.naming, date)}.zip`;
-    download(zip, fileName);
+    downloadBlob(zip, fileName);
     const heavy = items.filter((item) => {
       const size = state.results[item.key]?.size;
       return item.recipe.maxBytes !== null && size !== undefined && size > item.recipe.maxBytes;

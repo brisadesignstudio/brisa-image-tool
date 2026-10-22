@@ -33,6 +33,21 @@ export interface Recipe extends RecipeSettings {
   id: string;
 }
 
+/**
+ * Paquete de ajustes: varias versiones guardadas juntas, en su orden, y los nombres de
+ * archivo y carpetas, para reutilizarlas en otro lote. Nunca guarda imágenes, encuadres ni
+ * selecciones por imagen.
+ */
+export interface SettingsPackage {
+  id: string;
+  name: string;
+  versions: RecipeSettings[];
+  /** Nombres de archivo y carpetas del ZIP, o null si no se guardaron. */
+  naming: NamingSettings | null;
+  /** Última vez que se guardó o actualizó (ISO 8601). */
+  updatedAt: string;
+}
+
 /** Un ajuste guardado (de fábrica o propio). */
 export interface Preset extends RecipeSettings {
   id: string;

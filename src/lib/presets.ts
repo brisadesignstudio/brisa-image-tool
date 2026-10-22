@@ -1,4 +1,5 @@
-import type { Preset, Recipe, RecipeSettings } from './types';
+import { sanitizeNaming } from './naming';
+import type { NamingSettings, Preset, Recipe, RecipeSettings, SettingsPackage } from './types';
 
 /** Calidad mínima propuesta al activar el peso máximo. */
 export const DEFAULT_MIN_QUALITY = 60;
@@ -270,4 +271,66 @@ export function sanitizeSettings(raw: unknown): RecipeSettings | null {
   };
   if (settings.mode !== 'fit' && (!settings.width || !settings.height)) settings.mode = 'fit';
   return settings;
+}
+
+/** ¿Dos versiones guardan exactamente lo mismo? (sin contar su identificador). */
+export function sameSettings(a: RecipeSettings, b: RecipeSettings): boolean {
+  return JSON.stringify(settingsOf(a)) === JSON.stringify(settingsOf(b));
+}
+
+/** Un nombre que no choca con los existentes: «Portafolio» → «Portafolio (2)». */
+export function uniqueName(name: string, taken: readonly string[]): string {
+  const used = new Set(taken.map((n) => n.trim().toLowerCase()));
+  const base = name.trim().slice(0, 60) || 'Paquete';
+  if (!used.has(base.toLowerCase())) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base.slice(0, 54)} (${n})`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+}
+
+/** Límites de un paquete: suficientes para cualquier lote real y a salvo de archivos absurdos. */
+export const MAX_PACKAGE_VERSIONS = 30;
+
+export function packageFrom(
+  name: string,
+  recipes: readonly RecipeSettings[],
+  naming: NamingSettings | null,
+  date = new Date(),
+): SettingsPackage {
+  return {
+    id: newId('paquete'),
+    name: name.trim().slice(0, 60),
+    versions: recipes.slice(0, MAX_PACKAGE_VERSIONS).map(settingsOf),
+    naming: naming ? { ...naming } : null,
+    updatedAt: date.toISOString(),
+  };
+}
+
+/**
+ * Valida un paquete guardado o importado. Solo se quedan los campos conocidos y con
+ * valores válidos; las versiones dañadas se descartan. Siempre con identificador nuevo.
+ */
+export function sanitizePackage(raw: unknown): { pkg: SettingsPackage; dropped: number } | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const name = typeof r.name === 'string' ? r.name.trim().slice(0, 60) : '';
+  if (!name || !Array.isArray(r.versions)) return null;
+  const list = r.versions.slice(0, MAX_PACKAGE_VERSIONS);
+  const versions = list.flatMap((item) => {
+    const settings = sanitizeSettings(item);
+    return settings ? [settings] : [];
+  });
+  if (versions.length === 0) return null;
+  const updated = typeof r.updatedAt === 'string' && !Number.isNaN(Date.parse(r.updatedAt)) ? r.updatedAt : new Date(0).toISOString();
+  return {
+    pkg: {
+      id: newId('paquete'),
+      name,
+      versions,
+      naming: r.naming === null || r.naming === undefined ? null : sanitizeNaming(r.naming),
+      updatedAt: updated,
+    },
+    dropped: r.versions.length - versions.length,
+  };
 }

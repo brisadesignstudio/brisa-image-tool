@@ -18,7 +18,8 @@ export type IconName =
   | 'reset'
   | 'save'
   | 'image'
-  | 'stack';
+  | 'stack'
+  | 'box';
 
 const PATHS: Record<IconName, ReactNode> = {
   upload: (
@@ -126,6 +127,13 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="8" y="3.5" width="12.5" height="12.5" rx="2.2" />
       <path d="M16 20.5H6A2.5 2.5 0 0 1 3.5 18V8" />
+    </>
+  ),
+  box: (
+    <>
+      <path d="M3.8 7.6 12 3.5l8.2 4.1v8.8L12 20.5l-8.2-4.1Z" />
+      <path d="m3.8 7.6 8.2 4.1 8.2-4.1" />
+      <path d="M12 11.7v8.8" />
     </>
   ),
 };

@@ -4,16 +4,10 @@ import { useStore } from '../state/store';
 import { setNaming } from '../state/actions';
 import { exportSummary, exportZip } from '../state/export';
 import { formatBytes } from '../lib/format';
-import { PATTERN_TOKENS } from '../lib/naming';
+import { FOLDER_LABEL, PATTERN_TOKENS } from '../lib/naming';
 import type { FolderMode } from '../lib/types';
 import { Icon } from './Icon';
 import { Notice } from './Notice';
-
-const FOLDERS: Record<FolderMode, string> = {
-  salida: 'una carpeta por versión',
-  imagen: 'una carpeta por imagen',
-  ninguna: 'sin carpetas',
-};
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
@@ -154,7 +148,7 @@ export function ExportBar() {
             </p>
             {(summary.copies > 0 || summary.reading > 0) && (
               <p className="export__detail tabular">
-                {status} · {FOLDERS[naming.folders]}
+                {status} · {FOLDER_LABEL[naming.folders]}
               </p>
             )}
             {nothing && (

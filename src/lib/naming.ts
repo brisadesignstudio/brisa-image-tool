@@ -10,6 +10,13 @@ export const PATTERN_TOKENS = [
   { token: '{n}', label: 'número de imagen' },
 ] as const;
 
+/** Cómo se organizan las carpetas dentro del ZIP, en palabras. */
+export const FOLDER_LABEL: Record<FolderMode, string> = {
+  salida: 'una carpeta por versión',
+  imagen: 'una carpeta por imagen',
+  ninguna: 'sin carpetas',
+};
+
 export function todayStamp(date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -22,6 +29,22 @@ export function defaultNaming(): NamingSettings {
     folders: 'salida',
     includeOriginals: false,
     zipName: 'brisa-imagenes',
+  };
+}
+
+/** Valida nombres y carpetas guardados o importados; lo que no sirve vuelve al valor por defecto. */
+export function sanitizeNaming(raw: unknown): NamingSettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const defaults = defaultNaming();
+  const r = raw as Partial<Record<keyof NamingSettings, unknown>>;
+  const folders: FolderMode[] = ['salida', 'imagen', 'ninguna'];
+  return {
+    pattern:
+      typeof r.pattern === 'string' ? r.pattern.slice(0, 120).replaceAll('{salida}', '{version}') : defaults.pattern,
+    normalize: typeof r.normalize === 'boolean' ? r.normalize : defaults.normalize,
+    folders: folders.includes(r.folders as FolderMode) ? (r.folders as FolderMode) : defaults.folders,
+    includeOriginals: typeof r.includeOriginals === 'boolean' ? r.includeOriginals : defaults.includeOriginals,
+    zipName: typeof r.zipName === 'string' && r.zipName.trim() ? r.zipName.slice(0, 60) : defaults.zipName,
   };
 }
 

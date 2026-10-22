@@ -2598,6 +2598,192 @@ p.note {
   right: 6px;
 }
 
+/* ── Paquetes de ajustes ────────────────────────────────────── */
+
+.versions__tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.picker__title:focus-visible {
+  outline: none;
+}
+
+.packs__body {
+  display: grid;
+  gap: 22px;
+}
+
+.packs__section {
+  display: grid;
+  gap: 10px;
+}
+
+.packs__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.packs__row .input {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.packs__save {
+  display: grid;
+  gap: 8px;
+}
+
+.packs__list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pack {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: var(--r-m);
+  border: 1px solid var(--line);
+}
+
+.pack__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.pack__titles {
+  min-width: 0;
+}
+
+.pack__name {
+  margin: 0;
+  font-weight: 650;
+  font-size: 15.5px;
+  overflow-wrap: anywhere;
+}
+
+.pack__meta {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.pack__versions {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 0 18px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+.pack__versions strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.pack__manage summary {
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.pack__manage summary:hover {
+  background: var(--sunken);
+}
+
+.pack__tools {
+  display: grid;
+  gap: 10px;
+  padding: 10px 0 2px;
+}
+
+.pack__actions,
+.packs__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.packs__buttons {
+  justify-content: flex-end;
+}
+
+.pack__confirm {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+}
+
+.pack__confirm p {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.packs__apply {
+  display: grid;
+  gap: 16px;
+}
+
+.packs__modes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.packs__modes legend {
+  margin-bottom: 6px;
+}
+
+.packs__mode {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+
+.packs__mode:has(input:checked) {
+  border: 1.5px solid var(--vino);
+}
+
+.packs__mode input {
+  margin: 3px 0 0;
+  accent-color: var(--vino);
+  width: 18px;
+  height: 18px;
+}
+
+.packs__mode > span {
+  display: grid;
+  gap: 2px;
+}
+
+.packs__naming {
+  align-items: flex-start;
+}
+
 /* ── Soltar archivos y pie ──────────────────────────────────── */
 
 .drop-overlay {
