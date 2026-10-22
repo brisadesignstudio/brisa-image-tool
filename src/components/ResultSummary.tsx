@@ -36,11 +36,16 @@ export function ResultSummary({ image, recipe }: { image: SourceImage; recipe: R
   if (mode === 'pad' && (layout.iw < layout.cw || layout.ih < layout.ch)) geometry.push('con márgenes');
   const dimensions = geometry.length ? geometry.join(' y ') : 'mismas medidas';
 
+  const used = done && typeof result.quality === 'number' ? result.quality : recipe.quality;
   const compression = kept
     ? 'original sin recomprimir'
     : lossless
       ? 'compresión sin pérdida'
-      : `compresión con pérdida, calidad ${recipe.quality}`;
+      : used < recipe.quality
+        ? `compresión con pérdida, calidad ${used} (ajustada al peso; máxima ${recipe.quality})`
+        : `compresión con pérdida, calidad ${used}`;
+  const limit = recipe.maxBytes;
+  const over = done && limit !== null && result.size !== undefined && result.size > limit;
 
   let surface = '';
   if (format === 'jpeg' && (info.hasAlpha || (mode === 'pad' && spec.background === 'transparent'))) {
@@ -75,6 +80,15 @@ export function ResultSummary({ image, recipe }: { image: SourceImage; recipe: R
               <span className={`delta${result.size > image.size ? ' delta--up' : ''}`}>
                 {formatDelta(image.size, result.size)}
               </span>
+              {limit !== null && (
+                <>
+                  {' '}
+                  <span className={`limit-pill${over ? ' limit-pill--over' : ''}`} data-testid="limite-resumen">
+                    {over ? <Icon name="warning" /> : <Icon name="check" />}
+                    {over ? 'Supera el peso máximo' : 'Dentro del máximo'} ({formatBytes(limit)})
+                  </span>
+                </>
+              )}
             </>
           ) : result?.status === 'error' ? (
             <span className="muted">no se pudo preparar</span>

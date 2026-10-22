@@ -73,6 +73,8 @@ export interface ExportSummary {
   originals: number;
   /** Copias seleccionadas que ya están listas. */
   ready: number;
+  /** Copias listas que superan el peso máximo de su versión (se descargan igualmente). */
+  overLimit: number;
   reading: number;
   unreadable: number;
   /** Imágenes listas sin ninguna versión seleccionada (no irán en el ZIP) y el nombre de la primera. */
@@ -89,11 +91,13 @@ export function exportSummary(state: AppState): ExportSummary {
   const images = state.images.filter((i) => i.status === 'ready');
   let bytes = 0;
   let ready = 0;
+  let overLimit = 0;
   for (const item of items) {
     const result = state.results[item.key];
     if (result?.status === 'done' && result.size !== undefined) {
       bytes += result.size;
       ready += 1;
+      if (item.recipe.maxBytes !== null && result.size > item.recipe.maxBytes) overLimit += 1;
     }
   }
   const originals = state.naming.includeOriginals && items.length > 0 ? images : [];
@@ -110,6 +114,7 @@ export function exportSummary(state: AppState): ExportSummary {
     excluded: images.length * state.recipes.length - items.length,
     originals: originals.length,
     ready,
+    overLimit,
     reading: state.images.filter((i) => i.status === 'analyzing').length,
     unreadable: state.images.filter((i) => i.status === 'error').length,
     withoutVersions: empty.length,
@@ -255,6 +260,13 @@ export async function exportZip() {
     const zip = await getPool().run<Blob>({ type: 'zip', entries }, { priority: 100 });
     const fileName = `${zipBaseName(state.naming, date)}.zip`;
     download(zip, fileName);
+    const heavy = items.filter((item) => {
+      const size = state.results[item.key]?.size;
+      return item.recipe.maxBytes !== null && size !== undefined && size > item.recipe.maxBytes;
+    }).length;
+    const overNote = heavy
+      ? ` Incluye ${heavy === 1 ? '1 archivo que supera' : `${heavy} archivos que superan`} el peso máximo de su versión.`
+      : '';
     const unreadable = state.images.filter((i) => i.status === 'error');
     const skipped = unreadable.length
       ? ` No incluye ${unreadable.length === 1 ? `«${unreadable[0].name}», que no se pudo leer` : `${unreadable.length} imágenes que no se pudieron leer`}.`
@@ -262,7 +274,7 @@ export async function exportZip() {
     showNotice(
       'descarga',
       'ok',
-      `Descarga iniciada: ${fileName} (${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'}; el ZIP pesa ${formatBytes(zip.size)}). Búscalo en las descargas de tu navegador.${skipped}`,
+      `Descarga iniciada: ${fileName} (${entries.length} ${entries.length === 1 ? 'archivo' : 'archivos'}; el ZIP pesa ${formatBytes(zip.size)}). Búscalo en las descargas de tu navegador.${overNote}${skipped}`,
     );
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'error desconocido';

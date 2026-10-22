@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 import { Zip, ZipPassThrough } from 'fflate';
-import { analyze, open, release, render, type Decoded } from './pipeline';
+import { analyze, finish, open, prepare, release, type Decoded, type Prepared } from './pipeline';
+import { ByteCache } from './memo';
 import { FriendlyError, type RenderJob, type WorkerRequest, type WorkerResponse, type ZipEntry } from './protocol';
 
 declare const self: DedicatedWorkerGlobalScope;
@@ -11,6 +12,19 @@ let cache: { imageId: string; decoded: Decoded } | null = null;
 function remember(imageId: string, decoded: Decoded) {
   if (cache && cache.imageId !== imageId) release(cache.decoded);
   cache = { imageId, decoded };
+}
+
+/**
+ * Píxeles ya preparados y archivos ya codificados: al cambiar solo la calidad o el peso
+ * máximo no se vuelve a leer ni a redimensionar, y una calidad ya probada no se repite.
+ */
+const preparedCache = new ByteCache<Prepared>(32_000_000, (p) => p.image.data.byteLength);
+const encodedCache = new ByteCache<Uint8Array>(16_000_000, (b) => b.byteLength);
+
+function geometryKey(job: RenderJob): string {
+  const { sx, sy, sw, sh, iw, ih, cw, ch, ox, oy } = job.layout;
+  const surface = job.format === 'jpeg' ? 'plano' : 'alfa';
+  return `${job.imageId}|${[sx, sy, sw, sh, iw, ih, cw, ch, ox, oy].join(',')}|${job.background}|${surface}`;
 }
 
 async function decodedFor(job: RenderJob): Promise<Decoded> {
@@ -63,8 +77,13 @@ async function handle(msg: WorkerRequest) {
         break;
       }
       case 'render': {
-        const decoded = await decodedFor(msg.job);
-        const { output, transfer } = await render(msg.job, decoded);
+        const key = geometryKey(msg.job);
+        let ready = preparedCache.get(key);
+        if (!ready) {
+          ready = await prepare(msg.job, await decodedFor(msg.job));
+          preparedCache.set(key, ready);
+        }
+        const { output, transfer } = await finish(msg.job, ready, { cache: encodedCache, prefix: key });
         reply(msg.id, output, transfer);
         break;
       }
@@ -77,6 +96,8 @@ async function handle(msg: WorkerRequest) {
           release(cache.decoded);
           cache = null;
         }
+        preparedCache.forget(`${msg.imageId}|`);
+        encodedCache.forget(`${msg.imageId}|`);
         reply(msg.id, null);
         break;
       }

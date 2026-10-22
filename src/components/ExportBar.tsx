@@ -171,6 +171,14 @@ export function ExportBar() {
                   : `${summary.withoutVersions} imágenes no tienen ninguna versión seleccionada: no irán en el ZIP.`}
               </p>
             )}
+            {summary.overLimit > 0 && (
+              <p className="export__warn" data-testid="sobre-limite">
+                <Icon name="warning" />
+                {summary.overLimit === 1
+                  ? '1 archivo supera el peso máximo de su versión: se descargará igualmente. Lo verás marcado en su tarjeta.'
+                  : `${summary.overLimit} archivos superan el peso máximo de su versión: se descargarán igualmente. Los verás marcados en sus tarjetas.`}
+              </p>
+            )}
             {summary.unreadable > 0 && (
               <p className="export__warn">
                 <Icon name="warning" />

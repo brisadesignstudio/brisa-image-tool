@@ -22,6 +22,10 @@ export interface RecipeSettings {
   background: string;
   /** Margen interior en % del lado menor (modo márgenes). */
   margin: number;
+  /** Peso máximo de cada archivo, en bytes, o null si no hay límite. */
+  maxBytes: number | null;
+  /** Calidad más baja que se acepta para cumplir el peso máximo (JPG y WebP con pérdida). */
+  minQuality: number;
 }
 
 /** Una salida activa: se aplica a todas las imágenes cargadas. */
@@ -86,7 +90,8 @@ export type WarningCode =
   | 'kept-original'
   | 'heavier'
   | 'animated'
-  | 'color';
+  | 'color'
+  | 'over-limit';
 
 export interface RenderWarning {
   code: WarningCode;
@@ -103,6 +108,8 @@ export interface RenderResult {
   size?: number;
   format?: SourceFormat;
   keptOriginal?: boolean;
+  /** Calidad con la que se guardó (JPG y WebP con pérdida), tras ajustar al peso máximo. */
+  quality?: number | null;
   warnings: RenderWarning[];
   error?: string;
 }

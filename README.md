@@ -45,6 +45,15 @@ cualquiera en todo momento.
   *Recortar* (medida exacta, encuadre por imagen con ratón, esquinas o teclado: flechas,
   `+` y `−`) y *Márgenes* (la imagen completa sobre un lienzo, con fondo transparente o de
   color).
+- **Peso máximo por archivo** (opcional, desactivado por defecto, junto a formato y
+  calidad): se aplica a cada archivo de la versión, no al ZIP. En JPG y WebP con pérdida se
+  usa la mayor calidad, entre la mínima elegida (60 por defecto) y la de la versión, que no
+  pasa del límite; la búsqueda hace como mucho 8 codificaciones en segundo plano y reutiliza
+  píxeles y codificaciones ya hechos. Nunca cambia medidas ni formato, y PNG o WebP sin
+  pérdida nunca pasan a compresión con pérdida. Si no cabe, el archivo se entrega igual,
+  marcado «Supera el peso máximo» con su peso real y qué hacer (reducir medidas, bajar la
+  calidad mínima u otro formato); la descarga dice cuántos hay. La calidad es un ajuste del
+  codificador, no un porcentaje de fidelidad.
 - **Los cambios se guardan solos**: «Listo», `Esc` o cerrar no descartan nada.
 - Nombre de la versión y «Guardar como ajuste» están en «Más opciones».
 

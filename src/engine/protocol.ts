@@ -21,6 +21,10 @@ export interface RenderJob {
   background: string;
   /** Misma geometría y formato: si la copia no pesa menos, se entrega el archivo original. */
   keepOriginalIfNotSmaller: boolean;
+  /** Peso máximo del archivo (bytes) o null. Solo cambia la calidad de JPG y WebP con pérdida. */
+  maxBytes: number | null;
+  /** Calidad más baja admitida al buscar el peso máximo. */
+  minQuality: number;
   /** Devuelve también los píxeles sin comprimir (para comparar antes/después). */
   includeRaw: boolean;
 }
@@ -32,6 +36,10 @@ export interface RenderOutput {
   size: number;
   keptOriginal: boolean;
   flattened: boolean;
+  /** Calidad usada (JPG y WebP con pérdida); null si es sin pérdida o la original intacta. */
+  quality: number | null;
+  /** Codificaciones necesarias para encontrar la calidad (para medir, no se muestra). */
+  attempts: number;
   raw?: { width: number; height: number; data: ArrayBuffer };
 }
 

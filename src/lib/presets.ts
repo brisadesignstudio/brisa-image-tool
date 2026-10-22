@@ -1,9 +1,19 @@
 import type { Preset, Recipe, RecipeSettings } from './types';
 
+/** Calidad mínima propuesta al activar el peso máximo. */
+export const DEFAULT_MIN_QUALITY = 60;
+/** Peso máximo propuesto al activarlo: 300 KB. */
+export const DEFAULT_MAX_BYTES = 300_000;
+/** Límites del peso máximo admitido: de 1 KB a 100 MB. */
+export const MIN_MAX_BYTES = 1_000;
+export const MAX_MAX_BYTES = 100_000_000;
+
 const base = {
   lossless: false,
   background: '#ffffff',
   margin: 0,
+  maxBytes: null,
+  minQuality: DEFAULT_MIN_QUALITY,
 } satisfies Partial<RecipeSettings>;
 
 /** Ajustes de fábrica. Medidas recomendadas por cada plataforma en 2026. */
@@ -188,6 +198,8 @@ export function settingsOf(source: RecipeSettings): RecipeSettings {
     lossless: source.lossless,
     background: source.background,
     margin: source.margin,
+    maxBytes: source.maxBytes,
+    minQuality: source.minQuality,
   };
 }
 
@@ -250,6 +262,11 @@ export function sanitizeSettings(raw: unknown): RecipeSettings | null {
         ? (r.background as string)
         : '#ffffff',
     margin: clamp(Math.round(Number(r.margin) || 0), 0, 40),
+    maxBytes:
+      r.maxBytes === null || r.maxBytes === undefined || !Number.isFinite(Number(r.maxBytes))
+        ? null
+        : clamp(Math.round(Number(r.maxBytes)), MIN_MAX_BYTES, MAX_MAX_BYTES),
+    minQuality: clamp(Math.round(Number(r.minQuality) || DEFAULT_MIN_QUALITY), 1, 100),
   };
   if (settings.mode !== 'fit' && (!settings.width || !settings.height)) settings.mode = 'fit';
   return settings;

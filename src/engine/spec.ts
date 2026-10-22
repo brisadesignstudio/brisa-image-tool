@@ -1,5 +1,5 @@
 import { computeLayout, effectiveMode, type Layout } from '../lib/geometry';
-import { colorName, formatDimensions, resolveFormat } from '../lib/format';
+import { colorName, formatBytes, formatDimensions, resolveFormat } from '../lib/format';
 import type { CropRect, Recipe, RenderWarning, SourceFormat, SourceImage, SourceInfo } from '../lib/types';
 import type { RenderJob, RenderOutput } from './protocol';
 
@@ -30,6 +30,10 @@ export function buildSpec(image: SourceImage, recipe: Recipe, crop: CropRect | u
   // El fondo solo importa con márgenes o al pasar a JPG (que no admite transparencia).
   const background = mode === 'pad' || format === 'jpeg' ? recipe.background : 'transparent';
   const keepOriginalIfNotSmaller = layout.identity && format === info.format;
+  const lossy = !lossless;
+  // El peso máximo cambia la calidad de los formatos con pérdida; en los sin pérdida solo
+  // decide el aviso (el worker reutiliza el archivo ya codificado).
+  const limit = recipe.maxBytes === null ? 'sin-limite' : [recipe.maxBytes, lossy ? recipe.minQuality : null];
   const key = JSON.stringify([
     image.id,
     layout.sx,
@@ -46,6 +50,7 @@ export function buildSpec(image: SourceImage, recipe: Recipe, crop: CropRect | u
     lossless ? 'sin-perdida' : recipe.quality,
     background,
     keepOriginalIfNotSmaller,
+    limit,
   ]);
   return {
     key,
@@ -63,6 +68,8 @@ export function buildSpec(image: SourceImage, recipe: Recipe, crop: CropRect | u
       lossless,
       background,
       keepOriginalIfNotSmaller,
+      maxBytes: recipe.maxBytes,
+      minQuality: recipe.minQuality,
     },
   };
 }
@@ -81,6 +88,19 @@ export function warningsFor(
   const { layout } = spec;
   const warnings: RenderWarning[] = [];
   const mode = effectiveMode(recipe);
+  if (output && recipe.maxBytes !== null && output.size > recipe.maxBytes) {
+    const over = `Supera el peso máximo: ${formatBytes(output.size)} (máximo ${formatBytes(recipe.maxBytes)})`;
+    let advice: string;
+    if (!spec.lossless) {
+      const floor = Math.min(recipe.minQuality, recipe.quality);
+      advice = `, incluso con la calidad mínima (${floor}). Para cumplirlo, ${spec.format === 'jpeg' ? 'reduce las medidas, baja la calidad mínima o prueba WebP' : 'reduce las medidas o baja la calidad mínima'}.`;
+    } else if (spec.format === 'png') {
+      advice = `. PNG guarda sin pérdida y su peso no baja con la calidad: para cumplirlo, reduce las medidas o elige ${info.hasAlpha ? 'WebP con pérdida, que conserva la transparencia' : 'JPG o WebP con pérdida'}.`;
+    } else {
+      advice = '. Con compresión sin pérdida el peso no baja con la calidad: para cumplirlo, reduce las medidas o usa WebP con pérdida.';
+    }
+    warnings.push({ code: 'over-limit', message: over + advice });
+  }
   if (layout.limited) {
     const asked = formatDimensions(recipe.width as number, recipe.height as number);
     if (mode === 'crop') {

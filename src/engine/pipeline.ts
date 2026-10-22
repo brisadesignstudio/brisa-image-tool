@@ -4,6 +4,7 @@ import type { Layout } from '../lib/geometry';
 import type { SourceFormat, SourceInfo } from '../lib/types';
 import { MIME } from '../lib/format';
 import { decodePng, decodeWebp, encodeJpeg, encodePng, encodeWebp, resizePixels } from './codecs';
+import { searchQuality } from './quality-search';
 import { FriendlyError, type AnalyzeResult, type RenderJob, type RenderOutput } from './protocol';
 
 /**
@@ -194,10 +195,56 @@ async function encode(img: ImageData, format: SourceFormat, quality: number, los
   return encodePng(img);
 }
 
-export async function render(job: RenderJob, decoded: Decoded): Promise<{ output: RenderOutput; transfer: Transferable[] }> {
+export interface Prepared {
+  image: ImageData;
+  flattened: boolean;
+}
+
+/** Recorta, redimensiona y coloca en el lienzo: todo salvo comprimir. */
+export async function prepare(job: RenderJob, decoded: Decoded): Promise<Prepared> {
   const sampled = await sampleRegion(decoded, job.layout);
-  const { image, flattened } = compose(sampled, job.layout, job.background, job.format === 'jpeg');
-  const bytes = await encode(image, job.format, job.quality, job.lossless);
+  return compose(sampled, job.layout, job.background, job.format === 'jpeg');
+}
+
+/** Codificaciones ya hechas con los mismos píxeles, para no repetirlas. */
+export interface EncodeMemo {
+  cache: { get(key: string): Uint8Array | undefined; set(key: string, value: Uint8Array): void };
+  /** Identifica los píxeles preparados (imagen, geometría y fondo). */
+  prefix: string;
+}
+
+/**
+ * Comprime y decide qué archivo se entrega. Con peso máximo, JPG y WebP con pérdida
+ * buscan la mayor calidad que cabe (sin bajar de la mínima); los formatos sin pérdida
+ * nunca pasan a comprimir con pérdida: si no caben, se avisa.
+ */
+export async function finish(
+  job: RenderJob,
+  prepared: Prepared,
+  memo?: EncodeMemo,
+): Promise<{ output: RenderOutput; transfer: Transferable[] }> {
+  const { image, flattened } = prepared;
+  const lossy = job.format === 'jpeg' || (job.format === 'webp' && !job.lossless);
+  const encodeAt = async (quality: number) => {
+    const key = memo ? `${memo.prefix}|${job.format}|${lossy ? quality : 'sin-perdida'}` : null;
+    const hit = key ? memo?.cache.get(key) : undefined;
+    if (hit) return hit;
+    const bytes = await encode(image, job.format, quality, job.lossless);
+    if (key) memo?.cache.set(key, bytes);
+    return bytes;
+  };
+
+  let bytes: Uint8Array;
+  let quality: number | null = lossy ? job.quality : null;
+  let attempts = 1;
+  if (lossy && job.maxBytes !== null) {
+    const found = await searchQuality(job.quality, job.minQuality, job.maxBytes, encodeAt);
+    bytes = found.value;
+    quality = found.quality;
+    attempts = found.attempts;
+  } else {
+    bytes = await encodeAt(job.quality);
+  }
 
   const keptOriginal = job.keepOriginalIfNotSmaller && bytes.byteLength >= job.file.size;
   const blob = keptOriginal
@@ -211,14 +258,21 @@ export async function render(job: RenderJob, decoded: Decoded): Promise<{ output
     size: blob.size,
     keptOriginal,
     flattened,
+    quality: keptOriginal ? null : quality,
+    attempts,
   };
   const transfer: Transferable[] = [];
   if (job.includeRaw) {
-    const data = image.data.buffer as ArrayBuffer;
+    // Copia: los píxeles preparados pueden seguir en la caché del worker.
+    const data = image.data.slice().buffer as ArrayBuffer;
     output.raw = { width: image.width, height: image.height, data };
     transfer.push(data);
   }
   return { output, transfer };
+}
+
+export async function render(job: RenderJob, decoded: Decoded): Promise<{ output: RenderOutput; transfer: Transferable[] }> {
+  return finish(job, await prepare(job, decoded));
 }
 
 /** Lee la cabecera, comprueba que es JPG/PNG/WebP y decodifica. */

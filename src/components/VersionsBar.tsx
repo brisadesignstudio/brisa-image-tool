@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { openEditor, removeRecipe } from '../state/actions';
 import { describeSize } from '../lib/geometry';
-import { FORMAT_LABEL } from '../lib/format';
+import { FORMAT_LABEL, formatBytes } from '../lib/format';
 import { Icon } from './Icon';
 import { Notice } from './Notice';
 import { PresetPicker } from './PresetPicker';
@@ -62,6 +62,7 @@ export function VersionsBar() {
               <span className="chip__size tabular">
                 {describeSize(recipe)} ·{' '}
                 {recipe.format === 'original' ? 'mismo formato' : FORMAT_LABEL[recipe.format]}
+                {recipe.maxBytes !== null && ` · máx. ${formatBytes(recipe.maxBytes)}`}
               </span>
             </button>
             <button

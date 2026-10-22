@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { saveRecipeAsPreset, updateRecipe } from '../state/actions';
-import { FORMAT_LABEL, colorName, resolveFormat, supportsAlpha } from '../lib/format';
-import { MAX_SIDE } from '../lib/presets';
+import { FORMAT_LABEL, colorName, formatBytes, resolveFormat, supportsAlpha } from '../lib/format';
+import { DEFAULT_MAX_BYTES, MAX_MAX_BYTES, MAX_SIDE, MIN_MAX_BYTES } from '../lib/presets';
 import { effectiveMode } from '../lib/geometry';
 import { isLossless } from '../engine/spec';
 import type { FitMode, OutputFormat, Recipe, RecipeSettings, SourceFormat, SourceImage } from '../lib/types';
@@ -13,11 +13,17 @@ function NumberField({
   value,
   allowEmpty,
   onCommit,
+  unit = 'px',
+  max = MAX_SIDE,
+  id,
 }: {
   label: string;
   value: number | null;
   allowEmpty: boolean;
   onCommit: (value: number | null) => void;
+  unit?: string;
+  max?: number;
+  id?: string;
 }) {
   const [text, setText] = useState(value === null ? '' : String(value));
   useEffect(() => setText(value === null ? '' : String(value)), [value]);
@@ -32,7 +38,7 @@ function NumberField({
       }
       return;
     }
-    const n = Math.min(MAX_SIDE, Math.round(Number(trimmed)));
+    const n = Math.min(max, Math.round(Number(trimmed)));
     if (!Number.isFinite(n) || n < 1) {
       setText(value === null ? '' : String(value));
       return;
@@ -52,6 +58,7 @@ function NumberField({
   return (
     <span className="input-unit">
       <input
+        id={id}
         className="input tabular"
         inputMode="numeric"
         value={text}
@@ -63,12 +70,24 @@ function NumberField({
           if (event.key === 'Enter') commit();
         }}
       />
-      <span>px</span>
+      <span>{unit}</span>
     </span>
   );
 }
 
-function QualitySlider({ value, onCommit }: { value: number; onCommit: (value: number) => void }) {
+function QualitySlider({
+  value,
+  onCommit,
+  id = 'quality',
+  label = 'Calidad',
+  scale = true,
+}: {
+  value: number;
+  onCommit: (value: number) => void;
+  id?: string;
+  label?: string;
+  scale?: boolean;
+}) {
   const [local, setLocal] = useState(value);
   useEffect(() => setLocal(value), [value]);
   const commitRef = useRef(onCommit);
@@ -91,15 +110,15 @@ function QualitySlider({ value, onCommit }: { value: number; onCommit: (value: n
   return (
     <div className="field">
       <div className="quality-row">
-        <label className="field__label" htmlFor="quality">
-          Calidad
+        <label className="field__label" htmlFor={id}>
+          {label}
         </label>
-        <output htmlFor="quality" className="tabular">
+        <output htmlFor={id} className="tabular">
           {local}
         </output>
       </div>
       <input
-        id="quality"
+        id={id}
         className="range"
         type="range"
         min={1}
@@ -107,10 +126,78 @@ function QualitySlider({ value, onCommit }: { value: number; onCommit: (value: n
         value={local}
         onChange={(event) => setLocal(Number(event.target.value))}
       />
-      <div className="quality-scale" aria-hidden="true">
-        <span>Más ligera</span>
-        <span>Más nítida</span>
-      </div>
+      {scale && (
+        <div className="quality-scale" aria-hidden="true">
+          <span>Más ligera</span>
+          <span>Más nítida</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Peso máximo por archivo de la versión. Con pérdida, se busca la mayor calidad que cabe
+ * sin bajar de la mínima; sin pérdida, solo se avisa si no cabe (nunca se pasa a con pérdida).
+ */
+function MaxWeight({
+  recipe,
+  lossy,
+  update,
+}: {
+  recipe: Recipe;
+  lossy: boolean;
+  update: (patch: Partial<RecipeSettings>) => void;
+}) {
+  const on = recipe.maxBytes !== null;
+  const max = formatBytes(recipe.maxBytes ?? DEFAULT_MAX_BYTES);
+  const floor = Math.min(recipe.minQuality, recipe.quality);
+  return (
+    <div className="limit">
+      <label className="switch">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(event) => update({ maxBytes: event.target.checked ? DEFAULT_MAX_BYTES : null })}
+        />
+        Peso máximo por archivo
+      </label>
+      {on && (
+        <div className="limit__body">
+          <div className="field">
+            <label className="field__label" htmlFor="max-weight">
+              Peso máximo
+            </label>
+            <div className="limit__value">
+              <NumberField
+                id="max-weight"
+                label="Peso máximo por archivo, en KB"
+                value={Math.round((recipe.maxBytes as number) / 1000)}
+                allowEmpty={false}
+                unit="KB"
+                max={MAX_MAX_BYTES / 1000}
+                onCommit={(kb) => kb && update({ maxBytes: Math.max(MIN_MAX_BYTES, kb * 1000) })}
+              />
+            </div>
+          </div>
+          {lossy && (
+            <QualitySlider
+              id="min-quality"
+              label="Calidad mínima"
+              scale={false}
+              value={recipe.minQuality}
+              onCommit={(minQuality) => update({ minQuality })}
+            />
+          )}
+          <p className="field__hint" id="limit-hint">
+            {lossy
+              ? floor < recipe.quality
+                ? `Para cada archivo de esta versión, no para el ZIP: se usa la mayor calidad entre ${floor} y ${recipe.quality} que no pase de ${max}. Si ni así cabe, se avisa. La calidad es un ajuste del codificador, no un porcentaje de fidelidad.`
+                : `Para cada archivo de esta versión, no para el ZIP: la calidad mínima no es menor que ${recipe.quality}, así que no se baja. Si un archivo pasa de ${max}, se avisa.`
+              : `Para cada archivo de esta versión, no para el ZIP. Este formato guarda sin pérdida y su peso no baja con la calidad: si un archivo pasa de ${max}, se avisa para que decidas (reducir las medidas o elegir un formato con pérdida).`}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -326,8 +413,13 @@ export function RecipeForm({ recipe, image }: { recipe: Recipe; image: SourceIma
             </span>
           </p>
         ) : (
-          <QualitySlider value={recipe.quality} onCommit={(quality) => update({ quality })} />
+          <QualitySlider
+            value={recipe.quality}
+            label={recipe.maxBytes !== null ? 'Calidad (máxima)' : 'Calidad'}
+            onCommit={(quality) => update({ quality })}
+          />
         )}
+        <MaxWeight recipe={recipe} lossy={!lossless} update={update} />
       </section>
 
       <details className="more">

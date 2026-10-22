@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { BUILT_IN_PRESETS, CUSTOM_RECIPE } from '../lib/presets';
 import { describeSize } from '../lib/geometry';
-import { FORMAT_LABEL } from '../lib/format';
+import { FORMAT_LABEL, formatBytes } from '../lib/format';
 import type { Preset, RecipeSettings } from '../lib/types';
 import { useStore } from '../state/store';
 import { addRecipe, deletePreset, openEditor } from '../state/actions';
@@ -32,6 +32,7 @@ function PresetGroup({
               <span className="preset__name">{preset.name}</span>
               <span className="preset__size tabular">
                 {describeSize(preset)} · {formatName(preset)}
+                {preset.maxBytes !== null && ` · máx. ${formatBytes(preset.maxBytes)}`}
               </span>
               {preset.hint && <span className="preset__hint">{preset.hint}</span>}
               {inUse.includes(preset.name) && (

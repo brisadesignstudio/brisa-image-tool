@@ -10,7 +10,7 @@ import {
   resolveFormat,
 } from '../lib/format';
 import { describeSize } from '../lib/geometry';
-import { isLossless } from '../engine/spec';
+import { buildSpec, isLossless } from '../engine/spec';
 import type { Recipe, RenderWarning, SourceImage } from '../lib/types';
 import { Icon } from './Icon';
 
@@ -46,6 +46,7 @@ export function Notes({ warnings, limit }: { warnings: RenderWarning[]; limit?: 
 export function OutputCard({ image, recipe, index }: { image: SourceImage; recipe: Recipe; index: number }) {
   const key = itemKey(image.id, recipe.id);
   const result = useStore((s) => s.results[key]);
+  const crop = useStore((s) => s.crops[key]);
   const excluded = useStore((s) => Boolean(s.excluded[key]));
   const previewBg = useStore((s) => s.previewBg);
   const naming = useStore((s) => s.naming);
@@ -54,8 +55,13 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
 
   const format = resolveFormat(recipe.format, info.format);
   const lossless = isLossless(recipe, info, format);
-  const pending = !result || result.status === 'queued' || result.status === 'working';
-  const size = result?.size;
+  // Solo vale el resultado de los ajustes actuales: mientras se prepara otro, no se da por bueno.
+  const current = Boolean(result && result.key === buildSpec(image, recipe, crop)?.key);
+  const pending = !result || !current || result.status === 'queued' || result.status === 'working';
+  const size = pending ? undefined : result?.size;
+  const over = recipe.maxBytes !== null && size !== undefined && size > recipe.maxBytes;
+  const adjusted =
+    !pending && typeof result?.quality === 'number' && result.quality < recipe.quality ? result.quality : null;
   const fileName =
     result?.format && result.width ? outputFileName(naming, image, recipe, index, result) : null;
   const edit = () => openEditor(image.id, recipe.id);
@@ -92,9 +98,11 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
               ? `${formatDimensions(result.width, result.height)} px`
               : describeSize(recipe)}{' '}
             · {FORMAT_LABEL[format]} ·{' '}
-            {result?.keptOriginal
+            {!pending && result?.keptOriginal
               ? 'original sin recomprimir'
-              : describeOutputQuality(format, recipe.quality, lossless)}
+              : adjusted !== null
+                ? `calidad ${adjusted}, ajustada al peso`
+                : describeOutputQuality(format, recipe.quality, lossless)}
           </p>
         </div>
         <p className="weight tabular">
@@ -112,6 +120,12 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
               {formatDelta(image.size, size)}
             </span>
           )}
+          {recipe.maxBytes !== null && size !== undefined && (
+            <span className={`limit-pill${over ? ' limit-pill--over' : ''}`} data-testid="limite">
+              {over ? <Icon name="warning" /> : <Icon name="check" />}
+              {over ? 'Supera el peso máximo' : 'Dentro del máximo'} ({formatBytes(recipe.maxBytes)})
+            </span>
+          )}
         </p>
         {result?.status === 'error' && (
           <ul className="notes">
@@ -126,7 +140,7 @@ export function OutputCard({ image, recipe, index }: { image: SourceImage; recip
             </li>
           </ul>
         )}
-        {result && <Notes warnings={result.warnings} limit={2} />}
+        {result && <Notes warnings={pending ? result.warnings.filter((w) => w.code !== 'over-limit') : result.warnings} limit={2} />}
         {fileName && (
           <p className="filename" title="Nombre del archivo dentro del ZIP">
             {fileName}

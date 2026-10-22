@@ -46,6 +46,7 @@ async function launch(key: string, imageId: string, recipeId: string, spec: Rend
       size: output.size,
       format: spec.format,
       keptOriginal: output.keptOriginal,
+      quality: output.quality,
       warnings: warningsFor(image, recipe, spec, output),
     });
   } catch (error) {
@@ -84,7 +85,8 @@ export function syncRenders() {
       updates[key] = {
         key: spec.key,
         status: 'queued',
-        warnings: current?.warnings ?? warningsFor(image, recipe, spec),
+        // Solo los avisos que no dependen del archivo: nada del resultado anterior se da por bueno.
+        warnings: warningsFor(image, recipe, spec),
         blob: current?.blob,
         url: current?.url,
         width: current?.width,
@@ -92,6 +94,7 @@ export function syncRenders() {
         size: current?.size,
         format: current?.format,
         keptOriginal: current?.keptOriginal,
+        quality: current?.quality,
       };
       void launch(key, image.id, recipe.id, spec);
     }
