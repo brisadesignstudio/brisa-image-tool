@@ -296,8 +296,8 @@ repositorios públicos, sin cuentas ni servicios nuevos. Se publica solo el siti
   «Publicar ‹commit›: ‹asunto›». No se edita a mano.
 - **GitHub** (Settings → Pages): «Deploy from a branch», rama `gh-pages`, carpeta `/ (root)`;
   dominio `tools.brisadesignstudio.com` (lo fija el archivo `CNAME` que añade el script) y
-  «Enforce HTTPS», que se puede marcar cuando GitHub ha emitido el certificado del dominio
-  (estado actual en [`ESTADO.md`](ESTADO.md)).
+  «Enforce HTTPS» activado (certificado de Let's Encrypt; GitHub lo renueva solo). Si algún día
+  no emite el certificado, se quita el dominio y se vuelve a escribir en esa misma pantalla.
 - **DNS** (Namecheap → Advanced DNS): un solo registro `CNAME` · host `tools` · valor
   `brisadesignstudio.github.io.` · TTL Automatic. El resto del dominio no se ha tocado.
 

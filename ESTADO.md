@@ -2,9 +2,9 @@
 
 Preparador de imágenes de Brisa Design Studio. Herramienta independiente de Brisa Platform.
 
-**Publicada** el 22-10-2026 en GitHub Pages: **https://tools.brisadesignstudio.com**. El DNS
-está conectado y la web responde; falta que GitHub emita el certificado HTTPS del dominio (ver
-«Pendientes», punto 1).
+**Publicada** el 22-10-2026 en GitHub Pages: **https://tools.brisadesignstudio.com**, con HTTPS
+(certificado de Let's Encrypt que GitHub renueva solo) y «Enforce HTTPS»: `http://` redirige a
+`https://`.
 
 - Repositorio: `brisadesignstudio/brisa-image-tool`
 - Rama de trabajo (y rama por defecto del repositorio): `claude/brisa-image-processor-4954sj`
@@ -41,6 +41,9 @@ Detalle de funciones y garantías (fidelidad, privacidad, formatos): `README.md`
   añadirlo, `tools` no tenía ningún registro, no había comodín (`*`) ni restricciones CAA.
 - **Dirección temporal** de GitHub: https://brisadesignstudio.github.io/brisa-image-tool/ (desde
   que se añadió el dominio, redirige a él).
+- **Certificado**: GitHub no lo emitió hasta quitar el dominio y volver a escribirlo en Settings →
+  Pages (22-10-2026, 14:25 UTC). Eso dejó dos commits en `gh-pages` («Delete CNAME» y «Create
+  CNAME»); `npm run publicar` publica encima de ellos sin problema.
 - Actualizar, volver atrás y comprobar la web: «Publicación» del README.
 
 ## Cómo se ha verificado
@@ -54,8 +57,10 @@ Detalle de funciones y garantías (fidelidad, privacidad, formatos): `README.md`
 - **Publicación (22-10-2026)**:
   - Las 34 pruebas e2e contra la web publicada en la dirección temporal, ejecutadas en los
     servidores de GitHub (no contra una copia local): todas correctas.
-  - Las 34 también contra el dominio por `http://tools.brisadesignstudio.com` (aún sin
-    certificado), desde GitHub: todas correctas. Los códecs se sirven como `application/wasm`.
+  - Las 34 contra **https://tools.brisadesignstudio.com** (14:27–14:29 UTC), desde GitHub: todas
+    correctas. Estado final (14:37 UTC, tras el último despliegue): certificado válido para el
+    dominio (Let's Encrypt, hasta el 20-01-2027), `http://` responde 301 hacia `https://` y los
+    códecs se sirven como `application/wasm`.
   - En local, las 34 en la raíz y bajo la subcarpeta `/brisa-image-tool/` (como en github.io).
   - Lo publicado es idéntico, archivo por archivo, a lo compilado y probado.
   - El sitio compilado no lleva analíticas ni conexiones externas; la política de seguridad
@@ -70,24 +75,16 @@ Detalle de funciones y garantías (fidelidad, privacidad, formatos): `README.md`
 
 ## Pendientes
 
-1. **Certificado HTTPS de `tools.brisadesignstudio.com`**. A las 08:32 UTC del 22-10-2026 GitHub
-   aún servía su certificado genérico (`*.github.io`), casi 80 minutos después de propagarse el
-   DNS. Mientras tanto la web funciona por `http://` (sin candado): mejor no usarla ni
-   compartirla hasta tener HTTPS.
-   Paso: GitHub → repositorio → Settings → Pages → en «Custom domain», «Check again». Si no
-   aparece o no se emite, quitar el dominio y volver a escribirlo ahí mismo (queda sin asignar
-   unos segundos). Cuando esté emitido: marcar «Enforce HTTPS» y lanzar «Comprobar la web
-   publicada» (pestaña Actions) con la dirección por defecto.
-2. **Verificar el dominio en GitHub** (recomendado): impide que otra cuenta use el subdominio si
+1. **Verificar el dominio en GitHub** (recomendado): impide que otra cuenta use el subdominio si
    algún día se desactiva la web y el registro sigue apuntando a GitHub. Pide un registro `TXT`
    más en Namecheap; no se ha hecho porque solo se autorizó el `CNAME`.
-3. **Revisión manual** con imágenes reales (sin subirlas al repositorio).
-4. **Safari y Firefox**: no se han probado; no se dan por compatibles. En especial, el HTML
+2. **Revisión manual** con imágenes reales (sin subirlas al repositorio).
+3. **Safari y Firefox**: no se han probado; no se dan por compatibles. En especial, el HTML
    autónomo abierto desde disco en Safari.
-5. **Lector de pantalla real** (VoiceOver en el Mac): solo hay comprobaciones automáticas.
-6. **Tipografías de marca** (New Spirit, Acumin): para verlas en la web publicada hace falta
+4. **Lector de pantalla real** (VoiceOver en el Mac): solo hay comprobaciones automáticas.
+5. **Tipografías de marca** (New Spirit, Acumin): para verlas en la web publicada hace falta
    su licencia web; ahora se usan solo si están instaladas en el equipo.
-7. **Rama principal**: hoy la rama por defecto es la de trabajo. Si quieres una `main`, se
+6. **Rama principal**: hoy la rama por defecto es la de trabajo. Si quieres una `main`, se
    puede crear o fusionar cuando lo decidas.
 
 Ideas anotadas que ampliarían funciones (no hechas, a decidir): ajustes individuales por imagen
